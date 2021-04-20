@@ -6,6 +6,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"load-testing/core/dispatcher"
 	"load-testing/core/job"
+	"load-testing/core/metric"
 	"load-testing/core/worker"
 	"time"
 )
@@ -17,7 +18,8 @@ type baseLoadService struct {
 	currentWorker     worker.Worker
 	currentWorkerType worker.WorkerType
 
-	ctx context.Context
+	ctx            context.Context
+	metricConsumer *metric.MetricConsumer
 }
 
 func NewLoadService(dispatcher dispatcher.Dispatcher, ctx context.Context) LoadService {
@@ -32,13 +34,13 @@ func (ls *baseLoadService) Start() {
 	g, ctx := errgroup.WithContext(ls.ctx)
 
 	g.Go(func() error {
-		return ls.dispatcher.Dispatch(ctx)
+		return ls.dispatcher.Dispatch(ctx, ls.metricConsumer)
 	})
 
 	g.Go(func() error {
 		select {
 		case <-time.After(time.Second * time.Duration(ls.loadTime)):
-			ls.dispatcher.Shutdown()
+			ls.dispatcher.Shutdown() // TODO done context
 			return nil
 		}
 	})

@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"golang.org/x/sync/errgroup"
 	"load-testing/config"
+	"load-testing/core/metric"
 	"load-testing/core/worker"
 	"sync/atomic"
 	"time"
 )
 
 type roundRobinDispatcher struct {
-	done              chan bool
 	errorHandlingDone chan bool
 
 	workers       []worker.Worker
@@ -25,7 +25,6 @@ type roundRobinDispatcher struct {
 
 func NewRoundRobinDispatcher(cfg config.LoadTestConfig) Dispatcher {
 	return &roundRobinDispatcher{
-		done:              make(chan bool),
 		errorHandlingDone: make(chan bool),
 		workers:           make([]worker.Worker, 0),
 		currentWorker:     0,
@@ -34,7 +33,7 @@ func NewRoundRobinDispatcher(cfg config.LoadTestConfig) Dispatcher {
 	}
 }
 
-func (d *roundRobinDispatcher) Dispatch(ctx context.Context) error {
+func (d *roundRobinDispatcher) Dispatch(ctx context.Context, metricConsumer *metric.MetricConsumer) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
@@ -47,7 +46,7 @@ func (d *roundRobinDispatcher) Dispatch(ctx context.Context) error {
 	g.Go(func() error {
 		for {
 			select {
-			case <-d.done:
+			case <-ctx.Done():
 				for _, worker := range d.workers {
 					worker.Stop()
 				}
@@ -58,12 +57,13 @@ func (d *roundRobinDispatcher) Dispatch(ctx context.Context) error {
 					panic(err)
 				}
 
-				go func(indx int) {
-					err := d.workers[indx].Run()
+				cCtx, _ := context.WithCancel(ctx)
+				go func(indx int, ctx context.Context) {
+					err := d.workers[indx].Run(ctx, metricConsumer)
 					if err != nil {
 						d.errChan <- err
 					}
-				}(indx)
+				}(indx, cCtx)
 			}
 		}
 	})
@@ -74,12 +74,6 @@ func (d *roundRobinDispatcher) Dispatch(ctx context.Context) error {
 func (d *roundRobinDispatcher) AddWorker(id string, worker *worker.Worker) error {
 	d.workers = append(d.workers, *worker)
 
-	return nil
-}
-
-func (d *roundRobinDispatcher) Shutdown() error {
-	d.done <- true
-	d.errorHandlingDone <- true
 	return nil
 }
 

@@ -1,8 +1,10 @@
 package worker
 
 import (
+	"context"
 	"errors"
 	"load-testing/core/job"
+	"load-testing/core/metric"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
@@ -23,7 +25,7 @@ func NewWaitableWorker() Worker {
 	}
 }
 
-func (w *waitableWorker) Run() error {
+func (w *waitableWorker) Run(ctx context.Context, metricConsumer *metric.MetricConsumer) error {
 	if w.stopped {
 		return errors.New("Worker is currently stopped")
 	}
