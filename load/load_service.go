@@ -9,5 +9,5 @@ type LoadService interface {
 	Start()
 	AddJob(jobFunc func() error) error
 	AddJobToSpecificWorker(jobFunc func() error, workerType worker.WorkerType, jobType job.JobType, appendToPrevious bool) error
-	SetLoadTime(loadTime uint64)
+	SetLoadTime(loadTime float32)
 }

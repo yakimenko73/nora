@@ -12,7 +12,7 @@ import (
 )
 
 type baseLoadService struct {
-	loadTime uint64
+	loadTime float32
 
 	dispatcher        dispatcher.Dispatcher
 	currentWorker     worker.Worker
@@ -31,7 +31,8 @@ func NewLoadService(dispatcher dispatcher.Dispatcher, ctx context.Context) LoadS
 }
 
 func (ls *baseLoadService) Start() {
-	g, ctx := errgroup.WithContext(ls.ctx)
+	ctx, cancel := context.WithCancel(ls.ctx)
+	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
 		return ls.dispatcher.Dispatch(ctx, ls.metricConsumer)
@@ -39,8 +40,8 @@ func (ls *baseLoadService) Start() {
 
 	g.Go(func() error {
 		select {
-		case <-time.After(time.Second * time.Duration(ls.loadTime)):
-			ls.dispatcher.Shutdown() // TODO done context
+		case <-time.After(time.Duration(float32(time.Minute) * ls.loadTime)):
+			cancel()
 			return nil
 		}
 	})
@@ -95,6 +96,6 @@ func (ls *baseLoadService) AddJob(jobFunc func() error) error {
 	return ls.AddJobToSpecificWorker(jobFunc, ls.currentWorkerType, job.BaseJob, true)
 }
 
-func (ls *baseLoadService) SetLoadTime(loadTime uint64) {
+func (ls *baseLoadService) SetLoadTime(loadTime float32) {
 	ls.loadTime = loadTime
 }

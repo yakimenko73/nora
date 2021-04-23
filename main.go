@@ -29,9 +29,10 @@ func main() {
 	disp := dispatcher.NewRoundRobinDispatcher(*cfg)
 
 	ls := load.NewLoadService(disp, context.Background())
-	ls.SetLoadTime(uint64(cfg.TestDuration * 60))
+	ls.SetLoadTime(cfg.TestDuration)
 	ls.AddJob(prinSmth)
 
 	ls.Start()
+	
 	fmt.Println(A)
 }

@@ -37,7 +37,7 @@ func (d *roundRobinDispatcher) Dispatch(ctx context.Context, metricConsumer *met
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
-		return d.processErrors()
+		return d.processErrors(ctx)
 	})
 
 	tickInterval := time.Second / time.Duration(d.rps)
@@ -77,10 +77,10 @@ func (d *roundRobinDispatcher) AddWorker(id string, worker *worker.Worker) error
 	return nil
 }
 
-func (d *roundRobinDispatcher) processErrors() error {
+func (d *roundRobinDispatcher) processErrors(ctx context.Context) error {
 	for {
 		select {
-		case <-d.errorHandlingDone:
+		case <-ctx.Done():
 			return nil
 		case err := <-d.errChan:
 			fmt.Println(err)
