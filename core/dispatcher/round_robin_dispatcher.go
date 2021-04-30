@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"golang.org/x/sync/errgroup"
 	"load-testing/config"
+	"load-testing/core/job"
 	"load-testing/core/metric"
-	"load-testing/core/worker"
+	"load-testing/core/executor"
 	"sync/atomic"
 	"time"
 )
@@ -15,64 +16,75 @@ import (
 type roundRobinDispatcher struct {
 	errorHandlingDone chan bool
 
-	workers       []worker.Worker
-	currentWorker uint64
+	executor      executor.Executor
+
+	jobs          []job.Job
+	currentJob    uint64
 
 	rps uint64
 
 	errChan chan error
 }
 
-func NewRoundRobinDispatcher(cfg config.LoadTestConfig) Dispatcher {
+func NewRoundRobinDispatcher(cfg config.LoadTestConfig, executor executor.Executor) Dispatcher {
 	return &roundRobinDispatcher{
 		errorHandlingDone: make(chan bool),
-		workers:           make([]worker.Worker, 0),
-		currentWorker:     0,
+		executor:          executor,
 		rps:               cfg.RequestsPerSecond,
-		errChan:           make(chan error, 1),
+		errChan:           make(chan error, 0),
+		currentJob: 0,
 	}
 }
 
 func (d *roundRobinDispatcher) Dispatch(ctx context.Context, metricConsumer *metric.MetricConsumer) error {
-	g, ctx := errgroup.WithContext(ctx)
+	g, chctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
-		return d.processErrors(ctx)
+		return d.processErrors(chctx)
 	})
 
 	tickInterval := time.Second / time.Duration(d.rps)
 	ticker := time.NewTicker(tickInterval)
 
 	g.Go(func() error {
-		for {
-			select {
-			case <-ctx.Done():
-				for _, worker := range d.workers {
-					worker.Stop()
-				}
-				return nil
-			case <-ticker.C:
-				indx, err := d.nextIndex()
-				if err != nil {
-					panic(err)
-				}
+		<- ctx.Done()
+		ticker.Stop()
 
-				cCtx, _ := context.WithCancel(ctx)
-				go func(indx int, ctx context.Context) {
-					err := d.workers[indx].Run(ctx, metricConsumer)
-					if err != nil {
-						d.errChan <- err
-					}
-				}(indx, cCtx)
-			}
-		}
+		return nil
 	})
+
+	for i := 0; i < 4; i++ {
+		g.Go(func() error {
+			for {
+				select {
+				case <- ctx.Done():
+					return nil
+				case <- chctx.Done():
+					return nil
+				case <- ticker.C:
+					go func() {
+						indx, err := d.nextIndex()
+						if err != nil {
+							panic(err)
+						}
+
+						go func(indx int, ctx context.Context) {
+							err := d.executor.Execute(d.jobs[indx], ctx, metricConsumer)
+							if err != nil {
+								d.errChan <- err
+							}
+						}(indx, ctx)
+					}()
+				}
+			}
+		})
+	}
 
 	return g.Wait()
 }
 
-func (d *roundRobinDispatcher) AddWorker(id string, worker *worker.Worker) error {
-	d.workers = append(d.workers, *worker)
+func (d *roundRobinDispatcher) AddJob(id string, job job.Job) error {
+	d.jobs = append(d.jobs, job)
 
 	return nil
 }
@@ -89,9 +101,9 @@ func (d *roundRobinDispatcher) processErrors(ctx context.Context) error {
 }
 
 func (d *roundRobinDispatcher) nextIndex() (int, error) {
-	if len(d.workers) == 0 {
+	if len(d.jobs) == 0 {
 		return 0, errors.New("Workers are not ready yet!")
 	}
 
-	return int(atomic.AddUint64(&d.currentWorker, uint64(1)) % uint64(len(d.workers))), nil
+	return int(atomic.AddUint64(&d.currentJob, uint64(1)) % uint64(len(d.jobs))), nil
 }

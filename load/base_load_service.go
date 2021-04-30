@@ -2,12 +2,12 @@ package load
 
 import (
 	"context"
-	uuid "github.com/satori/go.uuid"
 	"golang.org/x/sync/errgroup"
 	"load-testing/core/dispatcher"
 	"load-testing/core/job"
 	"load-testing/core/metric"
-	"load-testing/core/worker"
+	"math/rand"
+	"strconv"
 	"time"
 )
 
@@ -15,8 +15,6 @@ type baseLoadService struct {
 	loadTime float32
 
 	dispatcher        dispatcher.Dispatcher
-	currentWorker     worker.Worker
-	currentWorkerType worker.WorkerType
 
 	ctx            context.Context
 	metricConsumer *metric.MetricConsumer
@@ -31,69 +29,19 @@ func NewLoadService(dispatcher dispatcher.Dispatcher, ctx context.Context) LoadS
 }
 
 func (ls *baseLoadService) Start() {
-	ctx, cancel := context.WithCancel(ls.ctx)
+	ctx, _ := context.WithTimeout(ls.ctx, time.Duration(float32(time.Minute) * ls.loadTime))
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
 		return ls.dispatcher.Dispatch(ctx, ls.metricConsumer)
 	})
 
-	g.Go(func() error {
-		select {
-		case <-time.After(time.Duration(float32(time.Minute) * ls.loadTime)):
-			cancel()
-			return nil
-		}
-	})
-
-	g.Wait()
-}
-
-// TODO
-func (ls *baseLoadService) AddJobToSpecificWorker(jobFunc func() error, workerType worker.WorkerType, jobType job.JobType, appendToPrevious bool) error {
-	jobObj, err := job.Classify(jobType, jobFunc)
-	if err != nil {
-		return err
-	}
-
-	if ls.currentWorker == nil {
-		worker, err := worker.Classify(workerType)
-		if err != nil {
-			return err
-		}
-
-		ls.currentWorker = worker
-		ls.currentWorkerType = workerType
-		err = ls.dispatcher.AddWorker(uuid.NewV4().String(), &ls.currentWorker)
-		if err != nil {
-			return err
-		}
-	}
-
-	if workerType == ls.currentWorkerType && appendToPrevious {
-		ls.currentWorker.AddJob(jobObj)
-	} else {
-
-		worker, err := worker.Classify(workerType)
-		if err != nil {
-			return err
-		}
-
-		ls.currentWorker = worker
-		ls.currentWorkerType = workerType
-		ls.currentWorker.AddJob(jobObj)
-
-		err = ls.dispatcher.AddWorker(uuid.NewV4().String(), &ls.currentWorker)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	_ = g.Wait()
 }
 
 func (ls *baseLoadService) AddJob(jobFunc func() error) error {
-	return ls.AddJobToSpecificWorker(jobFunc, ls.currentWorkerType, job.BaseJob, true)
+	j := job.NewBaseJob(jobFunc)
+	return ls.dispatcher.AddJob(strconv.Itoa(rand.Int()), j)
 }
 
 func (ls *baseLoadService) SetLoadTime(loadTime float32) {

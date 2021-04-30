@@ -3,23 +3,24 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/streadway/amqp"
 	"load-testing/config"
 	"load-testing/core/dispatcher"
+	"load-testing/core/executor"
 	"load-testing/load"
 	"os"
 	"time"
 )
 
 var (
-	A int = 0
+	TOTAL = 1
 
-	conn *amqp.Connection
-	channel *amqp.Channel
+	//conn *amqp.Connection
+	//channel *amqp.Channel
 )
 
+
 func prinSmth() error {
-	A++
+	TOTAL++
 
 	//return channel.Publish(
 	//	"amq.direct",
@@ -34,16 +35,16 @@ func prinSmth() error {
 }
 
 func init() {
-	var err error
-	conn, err = amqp.Dial("amqp://admin:admin@localhost:5772/")
-	if err != nil {
-		panic(err)
-	}
-
-	channel, err = conn.Channel()
-	if err != nil {
-		panic(err)
-	}
+	//var err error
+	//conn, err = amqp.Dial("amqp://admin:admin@localhost:5772/")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//channel, err = conn.Channel()
+	//if err != nil {
+	//	panic(err)
+	//}
 }
 
 func main() {
@@ -53,15 +54,16 @@ func main() {
 		return
 	}
 
-	disp := dispatcher.NewRoundRobinDispatcher(*cfg)
+	exec := executor.New(cfg)
+	disp := dispatcher.NewRoundRobinDispatcher(*cfg, exec)
 
 	ls := load.NewLoadService(disp, context.Background())
 	ls.SetLoadTime(cfg.TestDuration)
-	ls.AddJob(prinSmth)
+	_ = ls.AddJob(prinSmth)
 
 	fmt.Println(time.Now())
 	ls.Start()
 	fmt.Println(time.Now())
 
-	fmt.Println(float32(A) / 1000000)
+	fmt.Println(float32(TOTAL) / 1000000)
 }
