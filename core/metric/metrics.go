@@ -40,7 +40,7 @@ func (m *Metrics) GetLatencyMetrics() map[string]LatencyMetrics  {
 				lMetrics.Max = metric.Duration
 			}
 
-			SortedInsert(durations, metric.Duration)
+			durations = SortedInsert(durations, metric.Duration)
 		}
 		lMetrics.Q1 = calculatePercentile(durations, 25)
 		lMetrics.Median = calculatePercentile(durations, 50)
