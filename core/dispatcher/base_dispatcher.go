@@ -21,6 +21,7 @@ func NewDispatcher(workers uint64) Dispatcher {
 func (d *baseDispatcher) Dispatch(ctx context.Context, scheduler Scheduler, executor executor.Executor, duration time.Duration) <-chan *metric.Result {
 	var wg sync.WaitGroup
 	var doneCtx, cancel = context.WithCancel(ctx)
+	done := make(chan bool, 0)
 
 	ticks := make(chan interface{})
 	results := make(chan *metric.Result)
@@ -30,11 +31,30 @@ func (d *baseDispatcher) Dispatch(ctx context.Context, scheduler Scheduler, exec
 		go executor.ScheduleExecution(doneCtx, &wg, ticks, results)
 	}
 
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-done:
+			for {
+				if len(ticks) == 0 {
+					return
+				}
+
+				time.Sleep(time.Millisecond * 50)
+			}
+		}
+	}()
+
 	go func() {
 		defer close(results)
 		defer close(ticks)
 		defer wg.Wait()
-		defer cancel()
+		defer func() { done <- true }()
 
 		lastExecution, executed := time.Now(), uint64(0)
 		for {
