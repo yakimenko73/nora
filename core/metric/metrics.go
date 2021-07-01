@@ -21,6 +21,49 @@ func (m *Metrics) ConsumeResult(result *Result) {
 	m.Results[result.Name] = append(m.Results[result.Name], result)
 }
 
+func (m *Metrics) GetSimpleMetrics() ExecutionStatistic {
+	em := ExecutionStatistic{
+		TotalRequests:     0,
+		RequestsPerSecond: 0,
+		TotalSuccess:      0,
+		ErrorCodes:        make(map[string]int64, 0),
+	}
+	defer func() {
+		em.RequestsPerSecond = em.TotalRequests / int64(em.Duration / time.Second)
+	}()
+	defer func() {
+		em.Duration = em.EndTime.Sub(em.StartTime)
+	}()
+
+	for _, metrics := range m.Results {
+		em.TotalRequests += int64(len(metrics))
+
+		for _, metric := range metrics {
+			if metric.Start.Before(em.StartTime) || em.StartTime.Equal(time.Time{}) {
+				em.StartTime = metric.Start
+			}
+			if metricEndTime := metric.Start.Add(metric.Duration); metricEndTime.After(em.EndTime) || em.EndTime.Equal(time.Time{}) {
+				em.EndTime = metricEndTime
+			}
+
+
+			if metric.Error != nil {
+				if _, ok := em.ErrorCodes[metric.Error.Error()]; !ok {
+					em.ErrorCodes[metric.Error.Error()] = 0
+				}
+
+				em.ErrorCodes[metric.Error.Error()]++
+				continue
+			}
+
+			em.TotalSuccess += int64(1)
+		}
+	}
+
+
+	return em
+}
+
 func (m *Metrics) GetLatencyMetrics() map[string]LatencyMetrics  {
 	latencies := make(map[string]LatencyMetrics, 0)
 	for job, metrics := range m.Results {
@@ -40,7 +83,7 @@ func (m *Metrics) GetLatencyMetrics() map[string]LatencyMetrics  {
 				lMetrics.Max = metric.Duration
 			}
 
-			durations = SortedInsert(durations, metric.Duration)
+			durations = sortedInsert(durations, metric.Duration)
 		}
 		lMetrics.Q1 = calculatePercentile(durations, 25)
 		lMetrics.Median = calculatePercentile(durations, 50)
@@ -55,7 +98,8 @@ func (m *Metrics) GetLatencyMetrics() map[string]LatencyMetrics  {
 	return latencies
 }
 
-func SortedInsert(durations []time.Duration, duration time.Duration) []time.Duration {
+
+func sortedInsert(durations []time.Duration, duration time.Duration) []time.Duration {
 	i := sort.Search(len(durations), func(i int) bool {return durations[i] >= duration})
 	durations = append(durations, 0)
 	copy(durations[i+1:],durations[i:])

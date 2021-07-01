@@ -25,3 +25,15 @@ type LatencyMetrics struct {
 	P95 time.Duration
 	P99 time.Duration
 }
+
+type ExecutionStatistic struct {
+	StartTime time.Time
+	EndTime time.Time
+	Duration time.Duration
+
+	TotalRequests int64
+	RequestsPerSecond int64
+
+	TotalSuccess int64
+	ErrorCodes map[string]int64
+}
