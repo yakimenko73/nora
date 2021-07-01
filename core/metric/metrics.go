@@ -40,7 +40,6 @@ func (m *Metrics) GetSimpleMetrics() ExecutionStatistic {
 				em.EndTime = metricEndTime
 			}
 
-
 			if metric.Error != nil {
 				if _, ok := em.ErrorCodes[metric.Error.Error()]; !ok {
 					em.ErrorCodes[metric.Error.Error()] = 0
@@ -55,19 +54,19 @@ func (m *Metrics) GetSimpleMetrics() ExecutionStatistic {
 	}
 
 	em.Duration = em.EndTime.Sub(em.StartTime)
-	em.RequestsPerSecond = em.TotalRequests / int64(em.Duration / time.Second)
-	
+	em.RequestsPerSecond = em.TotalRequests / int64(em.Duration/time.Second)
+
 	return em
 }
 
-func (m *Metrics) GetLatencyMetrics() map[string]LatencyMetrics  {
+func (m *Metrics) GetLatencyMetrics() map[string]LatencyMetrics {
 	latencies := make(map[string]LatencyMetrics, 0)
 	for job, metrics := range m.Results {
 
 		durations := make([]time.Duration, 0)
 		lMetrics := LatencyMetrics{
-			Min: -1,
-			Max: -1,
+			Min:   -1,
+			Max:   -1,
 			Total: 0,
 		}
 		for _, metric := range metrics {
@@ -94,11 +93,32 @@ func (m *Metrics) GetLatencyMetrics() map[string]LatencyMetrics  {
 	return latencies
 }
 
+func (m *Metrics) GetLineChartsReport(groupingFactor time.Duration) *LineChartsReport {
+	report := &LineChartsReport{
+		Charts: make(map[string][]*ChartData, 0),
+	}
+
+	for job, metrics := range m.Results {
+		if _, ok := report.Charts[job]; !ok {
+			report.Charts[job] = make([]*ChartData, 0)
+		}
+
+		for _, metric := range metrics {
+			cd := &ChartData{
+				Duration: metric.Duration,
+				Time:     metric.Start.Truncate(groupingFactor),
+			}
+			report.Charts[job] = append(report.Charts[job], cd)
+		}
+	}
+
+	return report
+}
 
 func sortedInsert(durations []time.Duration, duration time.Duration) []time.Duration {
-	i := sort.Search(len(durations), func(i int) bool {return durations[i] >= duration})
+	i := sort.Search(len(durations), func(i int) bool { return durations[i] >= duration })
 	durations = append(durations, 0)
-	copy(durations[i+1:],durations[i:])
+	copy(durations[i+1:], durations[i:])
 	durations[i] = duration
 	return durations
 }
