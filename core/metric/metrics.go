@@ -28,12 +28,6 @@ func (m *Metrics) GetSimpleMetrics() ExecutionStatistic {
 		TotalSuccess:      0,
 		ErrorCodes:        make(map[string]int64, 0),
 	}
-	defer func() {
-		em.RequestsPerSecond = em.TotalRequests / int64(em.Duration / time.Second)
-	}()
-	defer func() {
-		em.Duration = em.EndTime.Sub(em.StartTime)
-	}()
 
 	for _, metrics := range m.Results {
 		em.TotalRequests += int64(len(metrics))
@@ -60,7 +54,9 @@ func (m *Metrics) GetSimpleMetrics() ExecutionStatistic {
 		}
 	}
 
-
+	em.Duration = em.EndTime.Sub(em.StartTime)
+	em.RequestsPerSecond = em.TotalRequests / int64(em.Duration / time.Second)
+	
 	return em
 }
 
