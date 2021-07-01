@@ -2,11 +2,12 @@ package executor
 
 import (
 	"context"
-	"load-testing/core/job"
-	"load-testing/core/metric"
+	"github.com/illatior/load-testing/core/job"
+	"github.com/illatior/load-testing/core/metric"
+	"sync"
 )
 
 type Executor interface {
-	Execute(job job.Job, ctx context.Context, consumer metric.MetricConsumer) error
+	AddJob(job *job.Job)
+	ScheduleExecution(ctx context.Context, wg *sync.WaitGroup, ticks <-chan interface{}, results chan<- *metric.Result)
 }
-

@@ -2,23 +2,38 @@ package executor
 
 import (
 	"context"
-	"load-testing/config"
-	"load-testing/core/job"
-	"load-testing/core/metric"
+	"github.com/illatior/load-testing/core/job"
+	"github.com/illatior/load-testing/core/metric"
+	"sync"
+	"time"
 )
 
 type simpleExecutor struct {
-
+	jobs []*job.Job
 }
 
-
-func New(cfg *config.LoadTestConfig) Executor {
+func New() Executor {
 	return &simpleExecutor{
-
+		jobs: make([]*job.Job, 0),
 	}
 }
 
+func (e *simpleExecutor) AddJob(j *job.Job) {
+	e.jobs = append(e.jobs, j)
+}
 
-func (e *simpleExecutor) Execute(job job.Job, ctx context.Context, consumer metric.MetricConsumer) error {
-	return job.Complete()
+func (e *simpleExecutor) ScheduleExecution(ctx context.Context, wg *sync.WaitGroup, ticks <-chan interface{}, results chan<- *metric.Result) {
+	defer wg.Done()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticks:
+			tickTime := time.Now()
+			for _, j := range e.jobs {
+				results <- (*j).Complete(tickTime)
+			}
+		}
+	}
 }
