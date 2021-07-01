@@ -22,7 +22,6 @@ func (j *baseJob) Complete(start time.Time) *metric.Result {
 	res := &metric.Result{
 		Name:  j.name,
 		Start: start,
-
 	}
 	defer func() {
 		if err != nil {

@@ -8,7 +8,7 @@ type Result struct {
 	Start    time.Time
 	Duration time.Duration
 
-	Error           error
+	Error error
 }
 
 type LatencyMetrics struct {
@@ -17,8 +17,8 @@ type LatencyMetrics struct {
 	Min time.Duration
 	Max time.Duration
 
-	Q1 time.Duration
-	Q3 time.Duration
+	Q1     time.Duration
+	Q3     time.Duration
 	Median time.Duration
 
 	P90 time.Duration
@@ -28,12 +28,21 @@ type LatencyMetrics struct {
 
 type ExecutionStatistic struct {
 	StartTime time.Time
-	EndTime time.Time
-	Duration time.Duration
+	EndTime   time.Time
+	Duration  time.Duration
 
-	TotalRequests int64
+	TotalRequests     int64
 	RequestsPerSecond int64
 
 	TotalSuccess int64
-	ErrorCodes map[string]int64
+	ErrorCodes   map[string]int64
+}
+
+type LineChartsReport struct {
+	Charts map[string][]*ChartData
+}
+
+type ChartData struct {
+	Duration time.Duration
+	Time     time.Time
 }
