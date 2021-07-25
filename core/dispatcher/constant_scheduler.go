@@ -6,23 +6,23 @@ import (
 )
 
 type ConstantScheduler struct {
-	Frequency int64
+	Frequency uint64
 	Period    time.Duration
 }
 
-func (cs ConstantScheduler) ScheduleNextExecution(elapsed time.Duration, hits uint64) (next time.Duration, stop bool) {
+func (cs ConstantScheduler) GetNextExecution(elapsed time.Duration, hits uint64) (next time.Duration, stop bool) {
 	if cs.Period == 0 || cs.Frequency == 0 {
 		return 0, false
 	}
-	if cs.Period < 0 || cs.Frequency < 0 {
+	if cs.Period < 0 {
 		return 0, true
 	}
 
-	expectedHits := uint64(cs.Frequency) * uint64(elapsed/cs.Period)
+	expectedHits := cs.Frequency * uint64(elapsed/cs.Period)
 	if hits < expectedHits {
 		return 0, false
 	}
-	interval := uint64(cs.Period.Nanoseconds() / cs.Frequency)
+	interval := uint64(cs.Period.Nanoseconds()) / cs.Frequency
 	if math.MaxInt64/interval < hits {
 		return 0, true
 	}
