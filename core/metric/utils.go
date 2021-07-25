@@ -11,6 +11,9 @@ func calculatePercentile(durations []time.Duration, percentile float64) time.Dur
 	_, f := math.Modf(x)
 
 	cur := float64(durations[int(x)-1])
-	next := float64(durations[int(x)])
+	next := cur
+	if len(durations)-1 > int(x) {
+		next = float64(durations[int(x)])
+	}
 	return time.Duration(cur + f*(next-cur))
 }

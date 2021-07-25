@@ -13,7 +13,6 @@ func (m *Metrics) ConsumeResult(result *Result) {
 	if m.Results == nil {
 		m.Results = make(map[string][]*Result, 0)
 	}
-
 	if _, ok := m.Results[result.Name]; !ok {
 		m.Results[result.Name] = make([]*Result, 0)
 	}
@@ -21,7 +20,7 @@ func (m *Metrics) ConsumeResult(result *Result) {
 	m.Results[result.Name] = append(m.Results[result.Name], result)
 }
 
-func (m *Metrics) GetSimpleMetrics() ExecutionStatistic {
+func (m *Metrics) GetExecutionStatistic() ExecutionStatistic {
 	em := ExecutionStatistic{
 		TotalRequests:     0,
 		RequestsPerSecond: 0,
@@ -61,7 +60,7 @@ func (m *Metrics) GetSimpleMetrics() ExecutionStatistic {
 
 func (m *Metrics) GetLatencyMetrics() map[string]LatencyMetrics {
 	latencies := make(map[string]LatencyMetrics, 0)
-	for job, metrics := range m.Results {
+	for task, metrics := range m.Results {
 
 		durations := make([]time.Duration, 0)
 		lMetrics := LatencyMetrics{
@@ -87,7 +86,7 @@ func (m *Metrics) GetLatencyMetrics() map[string]LatencyMetrics {
 		lMetrics.P95 = calculatePercentile(durations, 95)
 		lMetrics.P99 = calculatePercentile(durations, 99)
 
-		latencies[job] = lMetrics
+		latencies[task] = lMetrics
 	}
 
 	return latencies
