@@ -14,16 +14,21 @@ func Dispatch(ctx context.Context, scheduler scheduler.Scheduler, executor execu
 
 	ticks := make(chan interface{})
 	results := make(chan *metric.Result)
+	childCtx, cancel := context.WithCancel(ctx)
 
 	for i := uint64(0); i < workers; i++ {
 		wg.Add(1)
-		go executor.ScheduleExecution(&wg, ticks, results)
+		go func() {
+			defer wg.Done()
+			executor.ScheduleExecution(childCtx, ticks, results)
+		}()
 	}
 
 	go func() {
 		defer close(results)
 		defer wg.Wait()
 		defer close(ticks)
+		defer cancel()
 
 		start, executed := time.Now(), uint64(0)
 		for {

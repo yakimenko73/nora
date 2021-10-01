@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"context"
 	"github.com/illatior/task-scheduler/core/metric"
 	"github.com/illatior/task-scheduler/core/task"
 	"sync"
@@ -20,12 +21,26 @@ func (e *simpleExecutor) AddTask(task *task.Task) {
 	e.tasks = append(e.tasks, task)
 }
 
-func (e *simpleExecutor) ScheduleExecution(wg *sync.WaitGroup, ticks <-chan interface{}, results chan<- *metric.Result) {
-	defer wg.Done()
+func (e *simpleExecutor) ScheduleExecution(ctx context.Context, ticks <-chan interface{}, results chan<- *metric.Result) {
+	var wg sync.WaitGroup
+	childCtx, cancel := context.WithCancel(ctx)
 
-	for range ticks {
-		for _, j := range e.tasks {
-			results <- (*j).Run()
+	defer wg.Wait()
+	defer cancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticks:
+			for _, t := range e.tasks {
+
+				wg.Add(1)
+				go func(t *task.Task) {
+					defer wg.Done()
+					results <- (*t).Run(childCtx)
+				}(t)
+			}
 		}
 	}
 }

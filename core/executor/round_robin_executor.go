@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"context"
 	"errors"
 	"github.com/illatior/task-scheduler/core/metric"
 	"github.com/illatior/task-scheduler/core/task"
@@ -25,16 +26,30 @@ func (e *roundRobinExecutor) AddTask(task *task.Task) {
 	e.tasks = append(e.tasks, task)
 }
 
-func (e *roundRobinExecutor) ScheduleExecution(wg *sync.WaitGroup, ticks <-chan interface{}, results chan<- *metric.Result) {
-	defer wg.Done()
+// ScheduleExecution method is blocking
+func (e *roundRobinExecutor) ScheduleExecution(ctx context.Context, ticks <-chan interface{}, results chan<- *metric.Result) {
+	var wg sync.WaitGroup
+	childCtx, cancel := context.WithCancel(ctx)
 
-	for range ticks {
-		next, err := e.getNext()
-		if err != nil {
-			panic(err)
+	defer wg.Wait()
+	defer cancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticks:
+			next, err := e.getNext()
+			if err != nil {
+				panic(err)
+			}
+
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				results <- (*e.tasks[next]).Run(childCtx)
+			}()
 		}
-
-		results <- (*e.tasks[next]).Run()
 	}
 }
 
