@@ -1,8 +1,9 @@
-package dispatcher
+package core
 
 import (
 	"context"
 	"github.com/illatior/task-scheduler/core/executor"
+	"github.com/illatior/task-scheduler/core/scheduler"
 	"github.com/illatior/task-scheduler/core/task"
 	"runtime"
 	"testing"
@@ -12,7 +13,7 @@ import (
 func TestCallDispatch(t *testing.T) {
 	t.Parallel()
 
-	sch := ConstantScheduler{
+	sch := scheduler.ConstantScheduler{
 		Frequency: 1,
 		Period:    1 * time.Millisecond,
 	}

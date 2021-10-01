@@ -1,4 +1,4 @@
-package dispatcher
+package scheduler
 
 import (
 	"testing"
@@ -16,13 +16,10 @@ func TestConstantSchedulerNext(t *testing.T) {
 
 		next time.Duration
 		stop bool
-	} {
+	}{
 		{1, time.Second, 0, 0, time.Second, false},
-
 		{1, time.Second, time.Second, 1, time.Second, false},
-
 		{1, time.Second, time.Second, 2, 2 * time.Second, false},
-
 		{1, time.Second, time.Second, 0, 0, false},
 
 		// Infinite

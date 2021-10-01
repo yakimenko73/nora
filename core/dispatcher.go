@@ -1,18 +1,15 @@
-package dispatcher
+package core
 
 import (
 	"context"
 	"github.com/illatior/task-scheduler/core/executor"
 	"github.com/illatior/task-scheduler/core/metric"
+	"github.com/illatior/task-scheduler/core/scheduler"
 	"sync"
 	"time"
 )
 
-type Scheduler interface {
-	GetNextExecution(elapsed time.Duration, hits uint64) (next time.Duration, stop bool)
-}
-
-func Dispatch(ctx context.Context, scheduler Scheduler, executor executor.Executor, duration time.Duration, workers uint64) <-chan *metric.Result {
+func Dispatch(ctx context.Context, scheduler scheduler.Scheduler, executor executor.Executor, duration time.Duration, workers uint64) <-chan *metric.Result {
 	var wg sync.WaitGroup
 
 	ticks := make(chan interface{})

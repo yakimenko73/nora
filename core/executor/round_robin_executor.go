@@ -11,7 +11,7 @@ import (
 type roundRobinExecutor struct {
 	tasks []*task.Task
 
-	next int64
+	next uint64
 }
 
 func NewRoundRobinExecutor() Executor {
@@ -38,15 +38,11 @@ func (e *roundRobinExecutor) ScheduleExecution(wg *sync.WaitGroup, ticks <-chan 
 	}
 }
 
-func (e *roundRobinExecutor) getNext() (int64, error) {
+func (e *roundRobinExecutor) getNext() (uint64, error) {
 	if len(e.tasks) == 0 {
 		return 0, errors.New("Executor not initialized (tasks == 0)!")
 	}
 
-	atomic.AddInt64(&e.next, 1)
-	if e.next == int64(len(e.tasks)) {
-		e.next = 0
-	}
-
-	return e.next, nil
+	atomic.AddUint64(&e.next, 1)
+	return e.next % uint64(len(e.tasks)), nil
 }
