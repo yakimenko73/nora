@@ -23,10 +23,10 @@ func (e *simpleExecutor) AddTask(task *task.Task) {
 
 func (e *simpleExecutor) ScheduleExecution(ctx context.Context, ticks <-chan interface{}, results chan<- *metric.Result) {
 	var wg sync.WaitGroup
-	childCtx, cancel := context.WithCancel(ctx)
 
-	defer wg.Wait()
+	childCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	defer wg.Wait()
 
 	for {
 		select {

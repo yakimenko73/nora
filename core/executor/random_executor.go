@@ -25,8 +25,8 @@ func (re *randomExecutor) AddTask(task *task.Task) {
 // ScheduleExecution method is blocking
 func (re *randomExecutor) ScheduleExecution(ctx context.Context, ticks <-chan interface{}, results chan<- *metric.Result) {
 	var wg sync.WaitGroup
-	childCtx, cancel := context.WithCancel(ctx)
 
+	childCtx, cancel := context.WithCancel(ctx)
 	defer wg.Wait()
 	defer cancel()
 
@@ -45,7 +45,6 @@ func (re *randomExecutor) ScheduleExecution(ctx context.Context, ticks <-chan in
 				defer wg.Done()
 				results <- (*re.tasks[nextJobIndex]).Run(childCtx)
 			}()
-			continue
 		}
 	}
 }

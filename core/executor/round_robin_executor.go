@@ -29,8 +29,8 @@ func (e *roundRobinExecutor) AddTask(task *task.Task) {
 // ScheduleExecution method is blocking
 func (e *roundRobinExecutor) ScheduleExecution(ctx context.Context, ticks <-chan interface{}, results chan<- *metric.Result) {
 	var wg sync.WaitGroup
-	childCtx, cancel := context.WithCancel(ctx)
 
+	childCtx, cancel := context.WithCancel(ctx)
 	defer wg.Wait()
 	defer cancel()
 
