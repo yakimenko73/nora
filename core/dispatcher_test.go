@@ -25,7 +25,7 @@ func TestCallDispatch(t *testing.T) {
 
 	sch := scheduler.ConstantScheduler{
 		Frequency: 1,
-		Period:    1 * time.Microsecond,
+		Period:    5 * time.Microsecond,
 	}
 	taskk := task.NewBaseTask(func(ctx context.Context) error {
 		return nil
@@ -50,4 +50,35 @@ func TestCallDispatch(t *testing.T) {
 	expectedMaxExecutions := expectedTotalExecutions * uint64(100+deltaAbove) / 100
 	assert.GreaterOrEqual(t, actualExecutions, expectedMinExecutions)
 	assert.LessOrEqual(t, actualExecutions, expectedMaxExecutions)
+}
+
+func TestDispatch_ContextClosed(t *testing.T) {
+	t.Parallel()
+
+	testDuration := 1 * time.Second
+	delta := 1 * time.Second
+
+	ctx, cancel := context.WithTimeout(context.Background(), testDuration)
+	defer cancel()
+
+	sch := scheduler.ConstantScheduler{
+		Frequency: 1,
+		Period:    1 * time.Second,
+	}
+	taskk := task.NewBaseTask(func(ctx context.Context) error {
+		return nil
+	}, "test")
+
+	exec := executor.New()
+	exec.AddTask(&taskk)
+
+	start := time.Now()
+	for range Dispatch(ctx, sch, exec, 0, 1) { // uint64(runtime.GOMAXPROCS(0))
+	}
+
+	assert.Equal(t, ctx.Err(), context.DeadlineExceeded)
+
+	elapsed := time.Since(start)
+	assert.GreaterOrEqual(t, elapsed, time.Duration(0))
+	assert.LessOrEqual(t, elapsed, testDuration+delta)
 }
