@@ -3,6 +3,7 @@ package task
 import (
 	"context"
 	"github.com/illatior/task-scheduler/core/metric"
+	"github.com/pkg/errors"
 	"time"
 )
 
@@ -22,19 +23,19 @@ func NewTimeLimitedTask(taskFunc func(ctx context.Context) error, name string, t
 }
 
 func (t *timeLimitedTask) Run(ctx context.Context) (res *metric.Result) {
-	var err error
 	childCtx, cancel := context.WithTimeout(ctx, t.timeout)
 
 	done := make(chan bool, 1)
 
+	var err error
 	go func() {
 		defer cancel()
 
 		select {
+		case <-done:
+			return
 		case <-ctx.Done():
 			err = errContextCancelled
-			return
-		case <-done:
 			return
 		case <-time.After(t.timeout):
 			err = errTaskTimedOut
@@ -53,7 +54,13 @@ func (t *timeLimitedTask) Run(ctx context.Context) (res *metric.Result) {
 		res.Duration = time.Since(res.Start)
 	}()
 
-	err = t.task(childCtx)
+	if tmp := t.task(childCtx); tmp != nil {
+		if err != nil {
+			err = errors.Wrap(err, tmp.Error())
+		} else {
+			err = tmp
+		}
+	}
 	done <- true
 	return
 }
