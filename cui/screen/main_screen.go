@@ -9,6 +9,10 @@ import (
 	"github.com/mum4k/termdash/widgets/text"
 )
 
+const (
+	mainScreenLineChartId = "mainScreen-lineChart"
+)
+
 type mainScreen struct {
 	opts screenOpts
 
@@ -38,7 +42,7 @@ func NewMainScreen() (cui.Screen, error) {
 
 	body := grid.RowHeightPercWithOpts(
 		69,
-		[]container.Option{container.ID(cui.SCREEN_ID)},
+		[]container.Option{container.ID(mainScreenLineChartId)},
 		grid.Widget(m.latencyChart, borderLight(), borderTitle("Latency (ms)")),
 	)
 
