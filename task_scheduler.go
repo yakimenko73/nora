@@ -56,37 +56,39 @@ func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
 
 	userRes := make(chan *metric.Result)
 	uiRes := make(chan *metric.Result)
-	defer close(userRes)
-	defer close(uiRes)
-
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case m := <-originalRes:
-				userRes <- m
-				uiRes <- m
-			}
-		}
-	}()
+		defer close(userRes)
+		defer close(uiRes)
 
-	childCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	if ts.withCui {
-		go ts.runCui(childCtx, uiRes)
-	} else {
-		go func() { // mock
+		go func() {
 			for {
 				select {
-				case <-childCtx.Done():
+				case <-ctx.Done():
 					return
-				case <-uiRes:
-					continue
+				case m := <-originalRes:
+					userRes <- m
+					uiRes <- m
 				}
 			}
 		}()
-	}
+
+		childCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		if ts.withCui {
+			go ts.runCui(childCtx, uiRes)
+		} else {
+			go func() { // mock
+				for {
+					select {
+					case <-childCtx.Done():
+						return
+					case <-uiRes:
+						continue
+					}
+				}
+			}()
+		}
+	}()
 
 	return userRes
 }
