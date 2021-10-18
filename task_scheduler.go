@@ -9,6 +9,7 @@ import (
 	"github.com/illatior/task-scheduler/cui"
 	"github.com/mum4k/termdash/terminal/terminalapi"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -57,9 +58,12 @@ func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
 	userRes := make(chan *metric.Result)
 	uiRes := make(chan *metric.Result)
 	go func() {
+		var wg sync.WaitGroup
+
 		defer close(userRes)
 		defer close(uiRes)
 
+		wg.Add(1)
 		go func() {
 			for {
 				select {
@@ -72,6 +76,7 @@ func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
 			}
 		}()
 
+		wg.Add(1)
 		childCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		if ts.withCui {
@@ -88,6 +93,8 @@ func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
 				}
 			}()
 		}
+
+		wg.Wait()
 	}()
 
 	return userRes
