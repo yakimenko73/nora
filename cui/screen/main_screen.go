@@ -37,7 +37,7 @@ func NewMainScreen() (cui.Screen, error) {
 	header := grid.RowHeightPerc(1) // FIXME
 
 	body := grid.RowHeightPercWithOpts(
-		70,
+		69,
 		[]container.Option{container.ID(cui.SCREEN_ID)},
 		grid.Widget(m.latencyChart, borderLight(), borderTitle("Latency (ms)")),
 	)
