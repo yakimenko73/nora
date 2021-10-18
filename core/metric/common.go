@@ -18,8 +18,8 @@ type LatencyMetrics struct {
 	Max time.Duration
 
 	Q1     time.Duration
-	Q3     time.Duration
 	Median time.Duration
+	Q3     time.Duration
 
 	P90 time.Duration
 	P95 time.Duration

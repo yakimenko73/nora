@@ -21,7 +21,7 @@ func (m *Metrics) ConsumeResult(result *Result) {
 }
 
 func (m *Metrics) GetExecutionStatistic() ExecutionStatistic {
-	em := ExecutionStatistic{
+	es := ExecutionStatistic{
 		TotalRequests:     0,
 		RequestsPerSecond: 0,
 		TotalSuccess:      0,
@@ -29,33 +29,33 @@ func (m *Metrics) GetExecutionStatistic() ExecutionStatistic {
 	}
 
 	for _, metrics := range m.Results {
-		em.TotalRequests += int64(len(metrics))
+		es.TotalRequests += int64(len(metrics))
 
 		for _, metric := range metrics {
-			if metric.Start.Before(em.StartTime) || em.StartTime.Equal(time.Time{}) {
-				em.StartTime = metric.Start
+			if metric.Start.Before(es.StartTime) || es.StartTime.Equal(time.Time{}) {
+				es.StartTime = metric.Start
 			}
-			if metricEndTime := metric.Start.Add(metric.Duration); metricEndTime.After(em.EndTime) || em.EndTime.Equal(time.Time{}) {
-				em.EndTime = metricEndTime
+			if metricEndTime := metric.Start.Add(metric.Duration); metricEndTime.After(es.EndTime) || es.EndTime.Equal(time.Time{}) {
+				es.EndTime = metricEndTime
 			}
 
 			if metric.Error != nil {
-				if _, ok := em.ErrorCodes[metric.Error.Error()]; !ok {
-					em.ErrorCodes[metric.Error.Error()] = 0
+				if _, ok := es.ErrorCodes[metric.Error.Error()]; !ok {
+					es.ErrorCodes[metric.Error.Error()] = 0
 				}
 
-				em.ErrorCodes[metric.Error.Error()]++
+				es.ErrorCodes[metric.Error.Error()]++
 				continue
 			}
 
-			em.TotalSuccess += int64(1)
+			es.TotalSuccess += int64(1)
 		}
 	}
 
-	em.Duration = em.EndTime.Sub(em.StartTime)
-	em.RequestsPerSecond = em.TotalRequests / int64(em.Duration/time.Second)
+	es.Duration = es.EndTime.Sub(es.StartTime)
+	es.RequestsPerSecond = es.TotalRequests / int64(es.Duration/time.Second)
 
-	return em
+	return es
 }
 
 func (m *Metrics) GetLatencyMetrics() map[string]LatencyMetrics {

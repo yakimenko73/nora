@@ -35,7 +35,7 @@ func TestCallDispatch(t *testing.T) {
 	exec.AddTask(&taskk)
 
 	actualExecutions := uint64(0)
-	for range Dispatch(ctx, sch, exec, dispatchDuration, uint64(runtime.GOMAXPROCS(0))) {
+	for range Dispatch(ctx, sch, exec, dispatchDuration, runtime.GOMAXPROCS(0)) {
 		actualExecutions++
 	}
 	t.Log(fmt.Sprintf("Total executions: %d", actualExecutions))

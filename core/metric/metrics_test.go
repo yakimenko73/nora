@@ -37,4 +37,3 @@ func TestGetLatencyMetrics_SingleResult(t *testing.T) {
 	assert.Equal(t, actualMetric.P95, time.Second)
 	assert.Equal(t, actualMetric.P99, time.Second)
 }
-

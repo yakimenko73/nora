@@ -9,14 +9,14 @@ import (
 	"time"
 )
 
-func Dispatch(ctx context.Context, scheduler scheduler.Scheduler, executor executor.Executor, duration time.Duration, workers uint64) <-chan *metric.Result {
+func Dispatch(ctx context.Context, scheduler scheduler.Scheduler, executor executor.Executor, duration time.Duration, workers int) <-chan *metric.Result {
 	var wg sync.WaitGroup
 
 	ticks := make(chan interface{})
 	results := make(chan *metric.Result)
 	workerCtx, workerCancel := context.WithCancel(ctx)
 
-	for i := uint64(0); i < workers; i++ {
+	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
