@@ -21,6 +21,7 @@ type cui struct {
 }
 
 func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, error) {
+	// TODO add keyboard subscriber's
 	c, err := container.New(
 		t,
 		container.ID(SCREEN_ID),
@@ -30,14 +31,21 @@ func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, er
 	if err != nil {
 		return nil, err
 	}
-	return &cui{
+
+	ui := &cui{
 		isFullscreen: false,
 		c:            c,
 
 		mu:            sync.RWMutex{},
 		currentScreen: 0,
 		screens:       screens,
-	}, nil
+	}
+	err = ui.changeMainScreen()
+	if err != nil {
+		return nil, err
+	}
+
+	return ui, nil
 }
 
 func (ui *cui) AcceptMetric(m *metric.Result) {
