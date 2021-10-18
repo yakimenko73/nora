@@ -34,7 +34,7 @@ func NewMainScreen() (cui.Screen, error) {
 		return nil, err
 	}
 
-	var headerOpts grid.Element = nil
+	header := grid.RowHeightPerc(1) // FIXME
 
 	body := grid.RowHeightPercWithOpts(
 		70,
@@ -42,7 +42,7 @@ func NewMainScreen() (cui.Screen, error) {
 		grid.Widget(m.latencyChart, borderLight(), borderTitle("Latency (ms)")),
 	)
 
-	footerOpts := grid.RowHeightPerc(
+	footer := grid.RowHeightPerc(
 		30,
 		grid.ColWidthPerc(10, grid.Widget(m.optionsText, borderLight(), borderTitle("Run options"))),
 		grid.ColWidthPerc(20, grid.Widget(m.latenciesText, borderLight(), borderTitle("Latencies"))),
@@ -52,9 +52,9 @@ func NewMainScreen() (cui.Screen, error) {
 	)
 
 	m.opts = screenOpts{
-		header: headerOpts,
+		header: header,
 		body:   body,
-		footer: footerOpts,
+		footer: footer,
 	}
 
 	return m, nil
