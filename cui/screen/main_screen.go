@@ -34,7 +34,7 @@ func NewMainScreen() (cui.Screen, error) {
 		return nil, err
 	}
 
-	headerOpts := grid.RowHeightPerc(0)
+	var headerOpts grid.Element = nil
 
 	body := grid.RowHeightPercWithOpts(
 		70,
