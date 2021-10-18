@@ -1,6 +1,7 @@
 package cui
 
 import (
+	"context"
 	"github.com/illatior/task-scheduler/core/metric"
 	"github.com/mum4k/termdash/container/grid"
 	"github.com/mum4k/termdash/widgetapi"
@@ -12,6 +13,7 @@ const (
 )
 
 type ConsoleUserInterface interface {
+	Run(ctx context.Context) error
 	AcceptMetric(m *metric.Result)
 
 	ChangeFullscreenState() error

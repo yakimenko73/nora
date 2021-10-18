@@ -110,17 +110,37 @@ func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
 
 // runCui method is blocking
 func (ts *taskScheduler) runCui(ctx context.Context, res <-chan *metric.Result) {
+	var wg sync.WaitGroup
+
+	childCtx, cancel := context.WithCancel(ctx)
+	defer wg.Done()
+	defer cancel()
+
 	ui, err := cui.NewCui(ts.terminal, ts.screens...)
 	if err != nil {
 		panic(err)
 	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case m := <-res:
-			ui.AcceptMetric(m)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := ui.Run(childCtx)
+		if err != nil {
+			panic(err) // fixme
 		}
-	}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-childCtx.Done():
+				return
+			case m := <-res:
+				ui.AcceptMetric(m)
+			}
+		}
+	}()
+
+	<-ctx.Done()
 }

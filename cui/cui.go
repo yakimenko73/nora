@@ -1,8 +1,10 @@
 package cui
 
 import (
+	"context"
 	"errors"
 	"github.com/illatior/task-scheduler/core/metric"
+	"github.com/mum4k/termdash"
 	"github.com/mum4k/termdash/container"
 	"github.com/mum4k/termdash/container/grid"
 	"github.com/mum4k/termdash/linestyle"
@@ -13,6 +15,7 @@ import (
 type cui struct {
 	isFullscreen bool
 
+	t terminalapi.Terminal
 	c *container.Container
 
 	mu            sync.RWMutex
@@ -21,7 +24,6 @@ type cui struct {
 }
 
 func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, error) {
-	// TODO add keyboard subscriber's
 	c, err := container.New(
 		t,
 		container.ID(SCREEN_ID),
@@ -35,6 +37,7 @@ func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, er
 	ui := &cui{
 		isFullscreen: false,
 		c:            c,
+		t:            t,
 
 		mu:            sync.RWMutex{},
 		currentScreen: 0,
@@ -46,6 +49,11 @@ func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, er
 	}
 
 	return ui, nil
+}
+
+func (ui *cui) Run(ctx context.Context) error {
+	// TODO add keyboard subscriber's
+	return termdash.Run(ctx, ui.t, ui.c)
 }
 
 func (ui *cui) AcceptMetric(m *metric.Result) {
