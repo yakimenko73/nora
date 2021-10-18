@@ -110,7 +110,7 @@ func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
 
 // runCui method is blocking
 func (ts *taskScheduler) runCui(ctx context.Context, res <-chan *metric.Result) {
-	ui, err := cui.NewCui(ts.terminal)
+	ui, err := cui.NewCui(ts.terminal, ts.screens...)
 	if err != nil {
 		panic(err)
 	}
