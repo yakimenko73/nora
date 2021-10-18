@@ -7,6 +7,7 @@ import (
 	"github.com/illatior/task-scheduler/core/metric"
 	"github.com/illatior/task-scheduler/core/scheduler"
 	"github.com/illatior/task-scheduler/cui"
+	"github.com/illatior/task-scheduler/cui/screen"
 	"github.com/mum4k/termdash/terminal/terminalapi"
 	"runtime"
 	"sync"
@@ -33,7 +34,14 @@ func New(opts ...Option) (*taskScheduler, error) {
 	}
 	exec := executor.New()
 
-	screens := []cui.Screen{}
+	mainScreen, err := screen.NewMainScreen()
+	if err != nil {
+		return nil, err
+	}
+
+	screens := []cui.Screen{
+		mainScreen,
+	}
 
 	ts := &taskScheduler{
 		duration:       10 * time.Second,
