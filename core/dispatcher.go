@@ -12,15 +12,15 @@ import (
 func Dispatch(ctx context.Context, scheduler scheduler.Scheduler, executor executor.Executor, duration time.Duration, workers int) <-chan *metric.Result {
 	var wg sync.WaitGroup
 
-	ticks := make(chan interface{})
-	results := make(chan *metric.Result)
-	workerCtx, workerCancel := context.WithCancel(ctx)
+	ticks := make(chan interface{}, workers)
+	results := make(chan *metric.Result, workers)
+	ctx, workerCancel := context.WithCancel(ctx)
 
 	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			executor.ScheduleExecution(workerCtx, ticks, results)
+			executor.ScheduleExecution(ctx, ticks, results)
 		}()
 	}
 
