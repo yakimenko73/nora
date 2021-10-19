@@ -54,7 +54,10 @@ func New(opts ...Option) (*taskScheduler, error) {
 	}
 
 	for _, opt := range opts {
-		opt.apply(ts)
+		err = opt.apply(ts)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return ts, nil
