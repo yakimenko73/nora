@@ -7,6 +7,7 @@ import (
 	"github.com/mum4k/termdash"
 	"github.com/mum4k/termdash/container"
 	"github.com/mum4k/termdash/container/grid"
+	"github.com/mum4k/termdash/keyboard"
 	"github.com/mum4k/termdash/linestyle"
 	"github.com/mum4k/termdash/terminal/terminalapi"
 	"sync"
@@ -52,8 +53,34 @@ func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, er
 }
 
 func (ui *cui) Run(ctx context.Context) error {
+	childCtx, cancel := context.WithCancel(ctx)
+	go func() {
+		defer cancel()
+		<- ctx.Done()
+	}()
+
+	subs := func (k *terminalapi.Keyboard) {
+		var err error
+		switch k.Key {
+		case 'Q', 'q', keyboard.KeyCtrlC:
+			cancel()
+		case 'A', 'a':
+			err = ui.PreviousScreen()
+		case 'D', 'd':
+			err = ui.NextScreen()
+		case 'F', 'f':
+			err = ui.ChangeFullscreenState()
+		default:
+			return
+		}
+
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	// TODO add keyboard subscriber's
-	return termdash.Run(ctx, ui.t, ui.c)
+	return termdash.Run(childCtx, ui.t, ui.c, termdash.KeyboardSubscriber(subs))
 }
 
 func (ui *cui) AcceptMetric(m *metric.Result) {

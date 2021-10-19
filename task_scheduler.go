@@ -60,7 +60,15 @@ func New(opts ...Option) (*taskScheduler, error) {
 	return ts, nil
 }
 
+//func (ts *taskScheduler) Run(ctx context.Context) <-chan
+//
+//func (ts *taskScheduler) RunWithRawResults(ctx context.Context) <-chan *metric.Result {
+//
+//}
+
 func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
+	ctx, cancel := context.WithCancel(ctx)
+
 	originalRes := core.Dispatch(ctx, ts.sch, ts.exec, ts.duration, ts.executorsCount)
 
 	userRes := make(chan *metric.Result)
@@ -70,49 +78,68 @@ func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
 
 		defer close(userRes)
 		defer close(uiRes)
-
-		wg.Add(1)
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case m := <-originalRes:
-					userRes <- m
-					uiRes <- m
-				}
-			}
-		}()
-
-		wg.Add(1)
-		childCtx, cancel := context.WithCancel(ctx)
+		defer wg.Wait()
 		defer cancel()
-		if ts.withCui {
-			go ts.runCui(childCtx, uiRes)
-		} else {
-			go func() { // mock
-				for {
-					select {
-					case <-childCtx.Done():
-						return
-					case <-uiRes:
-						continue
-					}
-				}
-			}()
-		}
 
-		wg.Wait()
+		wg.Add(1)
+		go runMetricRepeater(ctx, userRes, uiRes, originalRes)
+
+		wg.Add(1)
+		runCiFunc := ts.getRunCuiFunc(ctx, uiRes)
+		go runCiFunc()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				continue
+			}
+		}
 	}()
 
 	return userRes
+}
+
+func runMetricRepeater(ctx context.Context,
+	userCh, uiCh chan<- *metric.Result,
+	resCh <-chan *metric.Result) {
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case m := <-resCh:
+			userCh <- m
+			uiCh <- m
+		}
+	}
+}
+
+func (ts *taskScheduler) getRunCuiFunc(ctx context.Context, ch <-chan *metric.Result) func() {
+	if ts.withCui {
+		return func () {
+			ts.runCui(ctx, ch)
+		}
+	}
+
+	return func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ch:
+				continue
+			}
+		}
+	}
 }
 
 // runCui method is blocking
 func (ts *taskScheduler) runCui(ctx context.Context, res <-chan *metric.Result) {
 	var wg sync.WaitGroup
 
-	childCtx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx)
 	defer wg.Done()
 	defer cancel()
 
@@ -123,24 +150,18 @@ func (ts *taskScheduler) runCui(ctx context.Context, res <-chan *metric.Result) 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err := ui.Run(childCtx)
+		err := ui.Run(ctx)
 		if err != nil {
 			panic(err) // fixme
 		}
 	}()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case <-childCtx.Done():
-				return
-			case m := <-res:
-				ui.AcceptMetric(m)
-			}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case m := <-res:
+			ui.AcceptMetric(m)
 		}
-	}()
-
-	<-ctx.Done()
+	}
 }
