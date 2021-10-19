@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"github.com/illatior/task-scheduler/core/metric"
 	"github.com/illatior/task-scheduler/core/task"
 	"github.com/illatior/task-scheduler/core/util"
@@ -24,6 +25,10 @@ func (re *randomExecutor) AddTask(task *task.Task) {
 
 // ScheduleExecution method is blocking
 func (re *randomExecutor) ScheduleExecution(ctx context.Context, ticks <-chan interface{}, results chan<- *metric.Result) {
+	if len(re.tasks) == 0 {
+		panic(errors.New("executor not initialized"))
+	}
+
 	var wg sync.WaitGroup
 
 	childCtx, cancel := context.WithCancel(ctx)
@@ -37,7 +42,7 @@ func (re *randomExecutor) ScheduleExecution(ctx context.Context, ticks <-chan in
 		case <-ticks:
 			nextJobIndex, err := util.GetRandomInt(0, len(re.tasks))
 			if err != nil {
-				panic(err) // FIXME dont panic here
+				panic(err)
 			}
 
 			wg.Add(1)

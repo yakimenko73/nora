@@ -55,7 +55,7 @@ func (e *roundRobinExecutor) ScheduleExecution(ctx context.Context, ticks <-chan
 
 func (e *roundRobinExecutor) getNext() (uint64, error) {
 	if len(e.tasks) == 0 {
-		return 0, errors.New("Executor not initialized (tasks == 0)!")
+		return 0, errors.New("executor not initialized (tasks == 0)")
 	}
 
 	atomic.AddUint64(&e.next, 1)
