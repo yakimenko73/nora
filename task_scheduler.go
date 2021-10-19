@@ -18,10 +18,9 @@ import (
 type taskScheduler struct {
 	duration time.Duration
 
+	executorsCount int
 	sch  scheduler.Scheduler
 	exec executor.Executor
-
-	executorsCount int
 
 	withCui  bool
 	screens  []cui.Screen

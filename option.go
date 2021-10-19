@@ -1,9 +1,11 @@
 package task_scheduler
 
 import (
+	"context"
 	"errors"
 	"github.com/illatior/task-scheduler/core/executor"
 	"github.com/illatior/task-scheduler/core/scheduler"
+	"github.com/illatior/task-scheduler/core/task"
 	"github.com/illatior/task-scheduler/cui"
 	"github.com/mum4k/termdash/terminal/tcell"
 	"github.com/mum4k/termdash/terminal/termbox"
@@ -24,8 +26,8 @@ func (o option) apply(ts *taskScheduler) error {
 
 func WithDuration(d time.Duration) Option {
 	return option(func(ts *taskScheduler) error {
-		if d < 0 {
-			return errors.New("duration of scheduling can't be < 0")
+		if d <= 0 {
+			return errors.New("duration of scheduling must be > 0")
 		}
 
 		ts.duration = d
@@ -86,6 +88,33 @@ func WithoutDefaultScreens() Option {
 func WithCustomScreen(s cui.Screen) Option {
 	return option(func(ts *taskScheduler) error {
 		ts.screens = append(ts.screens, s)
+		return nil
+	})
+}
+
+func WithTask(name string, f func (context.Context) error) Option {
+	return option(func(ts *taskScheduler) error {
+		if name == "" {
+			return errors.New("task name must not be empty")
+		}
+
+		t := task.NewBaseTask(f, name)
+		ts.exec.AddTask(t)
+		return nil
+	})
+}
+
+func WithTimeLimitedTask(name string, timeout time.Duration, f func (context.Context) error) Option {
+	return option(func(ts *taskScheduler) error {
+		if name == "" {
+			return errors.New("task name must not be empty")
+		}
+		if timeout <= 0 {
+			return errors.New("time-limited task timeout must be > 0")
+		}
+
+		t := task.NewTimeLimitedTask(f, name, timeout)
+		ts.exec.AddTask(t)
 		return nil
 	})
 }
