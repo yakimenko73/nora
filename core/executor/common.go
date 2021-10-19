@@ -7,6 +7,6 @@ import (
 )
 
 type Executor interface {
-	AddTask(task *task.Task)
+	AddTask(task task.Task)
 	ScheduleExecution(ctx context.Context, ticks <-chan interface{}, results chan<- *metric.Result)
 }

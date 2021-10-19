@@ -32,7 +32,7 @@ func TestCallDispatch(t *testing.T) {
 	}, "test")
 
 	exec := executor.New()
-	exec.AddTask(&taskk)
+	exec.AddTask(taskk)
 
 	actualExecutions := uint64(0)
 	for range Dispatch(ctx, sch, exec, dispatchDuration, runtime.GOMAXPROCS(0)) {
@@ -70,7 +70,7 @@ func TestDispatch_ContextClosed(t *testing.T) {
 	}, "test")
 
 	exec := executor.New()
-	exec.AddTask(&taskk)
+	exec.AddTask(taskk)
 
 	start := time.Now()
 	for range Dispatch(ctx, sch, exec, 0, 1) { // uint64(runtime.GOMAXPROCS(0))

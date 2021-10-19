@@ -8,16 +8,16 @@ import (
 )
 
 type simpleExecutor struct {
-	tasks []*task.Task
+	tasks []task.Task
 }
 
 func New() Executor {
 	return &simpleExecutor{
-		tasks: make([]*task.Task, 0),
+		tasks: make([]task.Task, 0),
 	}
 }
 
-func (e *simpleExecutor) AddTask(task *task.Task) {
+func (e *simpleExecutor) AddTask(task task.Task) {
 	e.tasks = append(e.tasks, task)
 }
 
@@ -36,9 +36,9 @@ func (e *simpleExecutor) ScheduleExecution(ctx context.Context, ticks <-chan int
 			for _, t := range e.tasks {
 
 				wg.Add(1)
-				go func(t *task.Task) {
+				go func(t task.Task) {
 					defer wg.Done()
-					results <- (*t).Run(childCtx)
+					results <- t.Run(childCtx)
 				}(t)
 			}
 		}

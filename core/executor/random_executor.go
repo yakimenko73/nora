@@ -10,16 +10,16 @@ import (
 )
 
 type randomExecutor struct {
-	tasks []*task.Task
+	tasks []task.Task
 }
 
 func NewRandomExecutor() Executor {
 	return &randomExecutor{
-		tasks: make([]*task.Task, 0),
+		tasks: make([]task.Task, 0),
 	}
 }
 
-func (re *randomExecutor) AddTask(task *task.Task) {
+func (re *randomExecutor) AddTask(task task.Task) {
 	re.tasks = append(re.tasks, task)
 }
 
@@ -48,7 +48,7 @@ func (re *randomExecutor) ScheduleExecution(ctx context.Context, ticks <-chan in
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				results <- (*re.tasks[nextJobIndex]).Run(childCtx)
+				results <- re.tasks[nextJobIndex].Run(childCtx)
 			}()
 		}
 	}

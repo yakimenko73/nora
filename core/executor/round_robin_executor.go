@@ -10,19 +10,19 @@ import (
 )
 
 type roundRobinExecutor struct {
-	tasks []*task.Task
+	tasks []task.Task
 
 	next uint64
 }
 
 func NewRoundRobinExecutor() Executor {
 	return &roundRobinExecutor{
-		tasks: make([]*task.Task, 0),
+		tasks: make([]task.Task, 0),
 		next:  0,
 	}
 }
 
-func (e *roundRobinExecutor) AddTask(task *task.Task) {
+func (e *roundRobinExecutor) AddTask(task task.Task) {
 	e.tasks = append(e.tasks, task)
 }
 
@@ -47,7 +47,7 @@ func (e *roundRobinExecutor) ScheduleExecution(ctx context.Context, ticks <-chan
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				results <- (*e.tasks[next]).Run(childCtx)
+				results <- e.tasks[next].Run(childCtx)
 			}()
 		}
 	}
