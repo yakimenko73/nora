@@ -2,7 +2,6 @@ package cui
 
 import (
 	"context"
-	"errors"
 	"github.com/illatior/task-scheduler/core/metric"
 	"github.com/mum4k/termdash"
 	"github.com/mum4k/termdash/container"
@@ -52,13 +51,12 @@ func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, er
 	return ui, nil
 }
 
-func (ui *cui) Run(ctx context.Context) error {
-	childCtx, cancel := context.WithCancel(ctx)
-	go func() {
-		defer cancel()
-		<- ctx.Done()
+func (ui *cui) Run(ctx context.Context, done chan<- bool) error {
+	defer func() {
+		done <- true
 	}()
 
+	ctx, cancel := context.WithCancel(ctx)
 	subs := func (k *terminalapi.Keyboard) {
 		var err error
 		switch k.Key {
@@ -79,12 +77,14 @@ func (ui *cui) Run(ctx context.Context) error {
 		}
 	}
 
-	// TODO add keyboard subscriber's
-	return termdash.Run(childCtx, ui.t, ui.c, termdash.KeyboardSubscriber(subs))
+	defer func() {
+		ui.t.Close()
+	}()
+	return termdash.Run(ctx, ui.t, ui.c, termdash.KeyboardSubscriber(subs))
 }
 
 func (ui *cui) AcceptMetric(m *metric.Result) {
-	panic(errors.New("qwe"))
+	return
 }
 
 func (ui *cui) ChangeFullscreenState() error {

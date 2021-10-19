@@ -13,7 +13,7 @@ const (
 )
 
 type ConsoleUserInterface interface {
-	Run(ctx context.Context) error
+	Run(ctx context.Context, done chan<- bool) error
 	AcceptMetric(m *metric.Result)
 
 	ChangeFullscreenState() error

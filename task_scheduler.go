@@ -9,6 +9,7 @@ import (
 	"github.com/illatior/task-scheduler/cui"
 	"github.com/illatior/task-scheduler/cui/screen"
 	"github.com/mum4k/termdash/terminal/terminalapi"
+	"golang.org/x/sync/errgroup"
 	"runtime"
 	"sync"
 	"time"
@@ -71,33 +72,35 @@ func New(opts ...Option) (*taskScheduler, error) {
 
 func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
 	ctx, cancel := context.WithCancel(ctx)
+	eg, ctx := errgroup.WithContext(ctx)
 
-	originalRes := core.Dispatch(ctx, ts.sch, ts.exec, ts.duration, ts.executorsCount)
+	res := core.Dispatch(ctx, ts.sch, ts.exec, ts.duration, ts.executorsCount)
 
 	userRes := make(chan *metric.Result)
 	uiRes := make(chan *metric.Result)
 	go func() {
-		var wg sync.WaitGroup
-
 		defer close(userRes)
 		defer close(uiRes)
-		defer wg.Wait()
+		defer eg.Wait()
 		defer cancel()
 
-		wg.Add(1)
-		go runMetricRepeater(ctx, userRes, uiRes, originalRes)
+		dispatchDone := make(chan bool, 1)
+		cuiDone := make(chan bool, 1)
 
-		wg.Add(1)
-		runCiFunc := ts.getRunCuiFunc(ctx, uiRes)
-		go runCiFunc()
+		eg.Go(func() error {
+			return runMetricRepeater(ctx, userRes, uiRes, res, dispatchDone)
+		})
 
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				continue
-			}
+		runCiFunc := ts.getRunCuiFunc(ctx, uiRes, cuiDone, dispatchDone)
+		eg.Go(func() error {
+			return runCiFunc()
+		})
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-cuiDone:
+			return
 		}
 	}()
 
@@ -106,31 +109,40 @@ func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
 
 func runMetricRepeater(ctx context.Context,
 	userCh, uiCh chan<- *metric.Result,
-	resCh <-chan *metric.Result) {
+	resCh <-chan *metric.Result,
+	done chan<- bool) error {
+	defer func() {
+		done <- true
+	}()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case m := <-resCh:
-			userCh <- m
-			uiCh <- m
-		}
+	for m := range resCh {
+		userCh <- m
+		uiCh <- m
 	}
+	return nil
 }
 
-func (ts *taskScheduler) getRunCuiFunc(ctx context.Context, ch <-chan *metric.Result) func() {
+func (ts *taskScheduler) getRunCuiFunc(ctx context.Context,
+	ch <-chan *metric.Result,
+	cuiDone chan<- bool,
+	dispatchDone <-chan bool) func() error {
 	if ts.withCui {
-		return func () {
-			ts.runCui(ctx, ch)
+		return func() error {
+			return ts.runCui(ctx, ch, cuiDone)
 		}
 	}
 
-	return func() {
+	return func() error {
+		defer func() {
+			cuiDone <- true
+		}()
+
 		for {
 			select {
 			case <-ctx.Done():
-				return
+				return nil
+			case <-dispatchDone:
+				return nil
 			case <-ch:
 				continue
 			}
@@ -139,32 +151,35 @@ func (ts *taskScheduler) getRunCuiFunc(ctx context.Context, ch <-chan *metric.Re
 }
 
 // runCui method is blocking
-func (ts *taskScheduler) runCui(ctx context.Context, res <-chan *metric.Result) {
+func (ts *taskScheduler) runCui(ctx context.Context, res <-chan *metric.Result, done chan<- bool) error {
 	var wg sync.WaitGroup
 
 	ctx, cancel := context.WithCancel(ctx)
-	defer wg.Done()
+	defer wg.Wait()
 	defer cancel()
 
 	ui, err := cui.NewCui(ts.terminal, ts.screens...)
 	if err != nil {
-		panic(err)
+		return err
 	}
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err := ui.Run(ctx)
-		if err != nil {
-			panic(err) // fixme
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case m := <-res:
+				if m == nil {
+					continue
+				}
+
+				ui.AcceptMetric(m)
+			}
 		}
 	}()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case m := <-res:
-			ui.AcceptMetric(m)
-		}
-	}
+	return ui.Run(ctx, done)
 }
