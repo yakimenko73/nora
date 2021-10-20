@@ -1,8 +1,8 @@
 package screen
 
 import (
+	"fmt"
 	"github.com/illatior/task-scheduler/cui"
-	"github.com/mum4k/termdash/container"
 	"github.com/mum4k/termdash/container/grid"
 	"github.com/mum4k/termdash/widgets/barchart"
 	"github.com/mum4k/termdash/widgets/linechart"
@@ -38,11 +38,8 @@ func NewMainScreen() (cui.Screen, error) {
 		return nil, err
 	}
 
-	header := grid.RowHeightPerc(1) // FIXME
-
-	body := grid.RowHeightPercWithOpts(
-		69,
-		[]container.Option{container.ID(mainScreenLineChartId)},
+	body := grid.RowHeightPerc(
+		70,
 		grid.Widget(m.latencyChart, borderLight(), borderTitle("Latency (ms)")),
 	)
 
@@ -56,7 +53,7 @@ func NewMainScreen() (cui.Screen, error) {
 	)
 
 	m.opts = screenOpts{
-		header: header,
+		header: nil,
 		body:   body,
 		footer: footer,
 	}

@@ -18,7 +18,7 @@ type cui struct {
 	t terminalapi.Terminal
 	c *container.Container
 
-	mu            sync.RWMutex
+	screenMu      sync.RWMutex
 	currentScreen int
 	screens       []Screen
 }
@@ -39,7 +39,7 @@ func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, er
 		c:            c,
 		t:            t,
 
-		mu:            sync.RWMutex{},
+		screenMu:      sync.RWMutex{},
 		currentScreen: 0,
 		screens:       screens,
 	}
@@ -94,11 +94,11 @@ func (ui *cui) ChangeFullscreenState() error {
 }
 
 func (ui *cui) NextScreen() error {
-	ui.mu.Lock()
-	defer ui.mu.Unlock()
+	ui.screenMu.Lock()
+	defer ui.screenMu.Unlock()
 
 	ui.currentScreen++
-	if ui.currentScreen == len(ui.screens)-1 {
+	if ui.currentScreen == len(ui.screens) {
 		ui.currentScreen = 0
 	}
 
@@ -106,8 +106,8 @@ func (ui *cui) NextScreen() error {
 }
 
 func (ui *cui) PreviousScreen() error {
-	ui.mu.Lock()
-	defer ui.mu.Unlock()
+	ui.screenMu.Lock()
+	defer ui.screenMu.Unlock()
 
 	ui.currentScreen--
 	if ui.currentScreen < 0 {
@@ -117,19 +117,16 @@ func (ui *cui) PreviousScreen() error {
 	return ui.changeMainScreen()
 }
 
-func (ui *cui) changeMainScreen() error {
+func (ui *cui) changeMainScreen() error { // FIXME after exiting fullscreen mode main BorderTitle and BorderStyle continues to be as body's one
 	currentScreen := ui.screens[ui.currentScreen]
 
 	builder := grid.New()
-	body := currentScreen.GetBody()
 	if ui.isFullscreen {
-		builder.Add(body)
+		addElem(currentScreen.GetBody(), builder)
 	} else {
-		builder.Add(
-			currentScreen.GetHeader(),
-			currentScreen.GetBody(),
-			currentScreen.GetFooter(),
-		)
+		addElem(currentScreen.GetHeader(), builder)
+		addElem(currentScreen.GetBody(), builder)
+		addElem(currentScreen.GetFooter(), builder)
 	}
 
 	opts, err := builder.Build()
@@ -142,4 +139,10 @@ func (ui *cui) changeMainScreen() error {
 
 func (ui *cui) IsFullscreen() bool {
 	return ui.isFullscreen
+}
+
+func addElem(e grid.Element, b *grid.Builder) {
+	if e != nil {
+		b.Add(e)
+	}
 }
