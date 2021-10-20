@@ -10,6 +10,7 @@ import (
 	"github.com/mum4k/termdash/linestyle"
 	"github.com/mum4k/termdash/terminal/terminalapi"
 	"sync"
+	"time"
 )
 
 type cui struct {
@@ -21,6 +22,12 @@ type cui struct {
 	screenMu      sync.RWMutex
 	currentScreen int
 	screens       []Screen
+
+	zxDuration     time.Duration
+	updateInterval time.Duration
+
+	metricsMu sync.RWMutex
+	metrics   *metric.Metrics
 }
 
 func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, error) {
@@ -42,6 +49,11 @@ func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, er
 		screenMu:      sync.RWMutex{},
 		currentScreen: 0,
 		screens:       screens,
+
+		zxDuration:     60 * time.Second, // TODO find a solution to configure it
+		updateInterval: 100 * time.Millisecond,
+
+		metrics: &metric.Metrics{},
 	}
 	err = ui.changeMainScreen()
 	if err != nil {
@@ -57,7 +69,9 @@ func (ui *cui) Run(ctx context.Context, done chan<- bool) error {
 	}()
 
 	ctx, cancel := context.WithCancel(ctx)
-	subs := func (k *terminalapi.Keyboard) {
+	go ui.update(ctx)
+
+	subs := func(k *terminalapi.Keyboard) {
 		var err error
 		switch k.Key {
 		case 'Q', 'q', keyboard.KeyCtrlC:
@@ -84,7 +98,40 @@ func (ui *cui) Run(ctx context.Context, done chan<- bool) error {
 }
 
 func (ui *cui) AcceptMetric(m *metric.Result) {
-	return
+	ui.metricsMu.Lock()
+	defer ui.metricsMu.Unlock()
+
+	ui.metrics.ConsumeResult(m)
+	ui.truncateResults()
+}
+
+func (ui *cui) truncateResults() {
+	// FIXME optimize it
+	now := time.Now()
+	from := now.Add(-ui.zxDuration)
+	ui.metrics = ui.metrics.TruncateMetrics(from, now)
+}
+
+func (ui *cui) update(ctx context.Context) {
+	t := time.NewTicker(ui.updateInterval)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			//ui.screenMu.Lock()
+			//metrics := *ui.metrics
+			//ui.screenMu.Unlock()
+			//
+			//currentScreen := ui.screens[ui.currentScreen]
+			//
+			//latencyMetrics := metrics.GetLatencyMetrics()
+			//
+			//currentScreen.UpdateWithLatencyMetrics(latencyMetrics)
+		}
+	}
 }
 
 func (ui *cui) ChangeFullscreenState() error {

@@ -25,9 +25,10 @@ type ConsoleUserInterface interface {
 
 type Screen interface {
 	GetBody() grid.Element
-
 	GetHeader() grid.Element
 	GetFooter() grid.Element
+
+	UpdateWithLatencyMetrics(m metric.LatencyMetrics)
 }
 
 type InfoPanel interface {

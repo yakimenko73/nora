@@ -2,6 +2,7 @@ package screen
 
 import (
 	"fmt"
+	"github.com/illatior/task-scheduler/core/metric"
 	"github.com/illatior/task-scheduler/cui"
 	"github.com/mum4k/termdash/container/grid"
 	"github.com/mum4k/termdash/widgets/barchart"
@@ -11,6 +12,21 @@ import (
 
 const (
 	mainScreenLineChartId = "mainScreen-lineChart"
+)
+
+const (
+	latenciesPattern = `Total: %v
+
+Min: %v
+Max: %v
+
+Q1: %v
+Median: %v
+Q3: %v
+
+P90: %v
+P95: %v
+P99: %v`
 )
 
 type mainScreen struct {
@@ -108,4 +124,15 @@ func (s *mainScreen) GetHeader() grid.Element {
 
 func (s *mainScreen) GetFooter() grid.Element {
 	return s.opts.footer
+}
+
+func (s *mainScreen) UpdateWithLatencyMetrics(m metric.LatencyMetrics) {
+	// FIXME handle errors
+	err := s.latenciesText.Write(
+		fmt.Sprintf(latenciesPattern, m.Total, m.Min, m.Max, m.Q1, m.Median, m.Q3, m.P90, m.P95, m.P99),
+		text.WriteReplace(),
+	)
+	if err != nil {
+		panic(err)
+	}
 }

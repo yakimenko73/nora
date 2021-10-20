@@ -5,8 +5,19 @@ import (
 	"time"
 )
 
+// TODO add OrderStaticsTree to get O(logn) time complexity of getting any percentile and do not calculate percentiles for every new execution result
 type Metrics struct {
 	Results map[string][]*Result
+	/*
+		there is should be:
+		max, min, avg resp time
+		different percentiles
+
+		total executed, errors (with descriptive variant), success
+
+		execution statistic like start/end time (with expected end time), duration, throughput, executors count
+
+	*/
 }
 
 func (m *Metrics) ConsumeResult(result *Result) {
@@ -20,22 +31,44 @@ func (m *Metrics) ConsumeResult(result *Result) {
 	m.Results[result.Name] = append(m.Results[result.Name], result)
 }
 
+func (m *Metrics) TruncateMetrics(from, to time.Time) *Metrics {
+	truncated := &Metrics{}
+
+	for _, metrics := range m.Results {
+		for _, metric := range metrics {
+			if metric.Start.Before(from) || metric.Start.Add(metric.Duration).After(to) {
+				continue
+			}
+
+			truncated.ConsumeResult(metric)
+		}
+	}
+
+	return truncated
+}
+
 func (m *Metrics) GetExecutionStatistic() ExecutionStatistic {
 	es := ExecutionStatistic{
 		TotalRequests:     0,
 		RequestsPerSecond: 0,
 		TotalSuccess:      0,
 		ErrorCodes:        make(map[string]int64, 0),
+		StartTime:         time.Unix(1<<63-1, 0),
+		EndTime:           time.Unix(0, 0),
 	}
+	defer func() {
+		es.Duration = es.EndTime.Sub(es.StartTime)
+		es.RequestsPerSecond = es.TotalRequests / int64(es.Duration/time.Second)
+	}()
 
 	for _, metrics := range m.Results {
 		es.TotalRequests += int64(len(metrics))
 
 		for _, metric := range metrics {
-			if metric.Start.Before(es.StartTime) || es.StartTime.Equal(time.Time{}) {
+			if metric.Start.Before(es.StartTime) {
 				es.StartTime = metric.Start
 			}
-			if metricEndTime := metric.Start.Add(metric.Duration); metricEndTime.After(es.EndTime) || es.EndTime.Equal(time.Time{}) {
+			if metricEndTime := metric.Start.Add(metric.Duration); metricEndTime.After(es.EndTime) {
 				es.EndTime = metricEndTime
 			}
 
@@ -51,9 +84,6 @@ func (m *Metrics) GetExecutionStatistic() ExecutionStatistic {
 			es.TotalSuccess += int64(1)
 		}
 	}
-
-	es.Duration = es.EndTime.Sub(es.StartTime)
-	es.RequestsPerSecond = es.TotalRequests / int64(es.Duration/time.Second)
 
 	return es
 }

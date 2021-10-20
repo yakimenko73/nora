@@ -2,27 +2,59 @@ package task_scheduler
 
 import (
 	"context"
-	"github.com/mum4k/termdash/terminal/termbox"
-	"github.com/mum4k/termdash/terminal/terminalapi"
-	"time"
-
+	"fmt"
+	"math/rand"
 	"testing"
+	"time"
 )
 
 func TestSandbox(t *testing.T) {
-	ter, err := termbox.New(termbox.ColorMode(terminalapi.ColorMode256))
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	tsch, err := New(
-		WithDuration(time.Second),
-		WithConsoleUserInterface(ter),
+		WithConsoleUserInterface(),
+		WithDuration(60*time.Second),
+		WithTask("rnd task", rndTask),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for range tsch.Run(context.Background()) {
+	for metric := range tsch.Run(ctx) {
+		fmt.Printf("metric - %v\n", metric)
 	}
 }
+
+func rndTask(ctx context.Context) error {
+	time.Sleep(time.Duration(int(time.Second)*(rand.Int()%3) + 1))
+	return nil
+}
+
+//func TestSandbox(t *testing.T) {
+//	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+//	defer cancel()
+//
+//	main, err := screen.NewMainScreen()
+//
+//	ter, err := createTerminal()
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//
+//	c, err := cui.NewCui(ter, main)
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//
+//	done := make(chan bool)
+//	done2 := make(chan bool)
+//	go func() {
+//		err := c.Run(ctx, done)
+//		fmt.Println(err)
+//		done2 <- true
+//	}()
+//
+//	<- done
+//	<- done2
+//}
