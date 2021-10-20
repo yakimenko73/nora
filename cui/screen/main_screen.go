@@ -126,6 +126,7 @@ func (s *mainScreen) GetFooter() grid.Element {
 	return s.opts.footer
 }
 
+// TODO figure out how to pass metrics to active screen
 func (s *mainScreen) UpdateWithLatencyMetrics(m metric.LatencyMetrics) {
 	// FIXME handle errors
 	err := s.latenciesText.Write(

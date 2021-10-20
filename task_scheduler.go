@@ -19,8 +19,8 @@ type taskScheduler struct {
 	duration time.Duration
 
 	executorsCount int
-	sch  scheduler.Scheduler
-	exec executor.Executor
+	sch            scheduler.Scheduler
+	exec           executor.Executor
 
 	withCui  bool
 	screens  []cui.Screen
@@ -75,6 +75,7 @@ func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
 
 	res := core.Dispatch(ctx, ts.sch, ts.exec, ts.duration, ts.executorsCount)
 
+	// TODO add errs chan with exiting after receiving any error and replace errgroup with it
 	userRes := make(chan *metric.Result)
 	uiRes := make(chan *metric.Result)
 	go func() {
@@ -114,6 +115,7 @@ func runMetricRepeater(ctx context.Context,
 		done <- true
 	}()
 
+	// TODO find a better solution to duplicate execution results (and also with ctx.Done handling)
 	for m := range resCh {
 		userCh <- m
 		uiCh <- m

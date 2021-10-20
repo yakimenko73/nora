@@ -71,6 +71,7 @@ func (ui *cui) Run(ctx context.Context, done chan<- bool) error {
 	ctx, cancel := context.WithCancel(ctx)
 	go ui.update(ctx)
 
+	// TODO add +/- handlers for increasing/decreasing displayable period
 	subs := func(k *terminalapi.Keyboard) {
 		var err error
 		switch k.Key {
