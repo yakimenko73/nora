@@ -7,8 +7,6 @@ import (
 	"github.com/illatior/task-scheduler/core/metric"
 	"github.com/illatior/task-scheduler/core/scheduler"
 	"github.com/illatior/task-scheduler/cui"
-	"github.com/illatior/task-scheduler/cui/screen"
-	"github.com/mum4k/termdash/terminal/terminalapi"
 	"golang.org/x/sync/errgroup"
 	"runtime"
 	"sync"
@@ -22,39 +20,26 @@ type taskScheduler struct {
 	sch            scheduler.Scheduler
 	exec           executor.Executor
 
-	withCui  bool
-	screens  []cui.Screen
-	terminal terminalapi.Terminal
+	c cui.ConsoleUserInterface
 }
 
 func New(opts ...Option) (*taskScheduler, error) {
 	sch := scheduler.ConstantScheduler{
-		Frequency: 1,
+		Frequency: 10,
 		Period:    1 * time.Second,
 	}
 	exec := executor.New()
-
-	mainScreen, err := screen.NewMainScreen()
-	if err != nil {
-		return nil, err
-	}
-
-	screens := []cui.Screen{
-		mainScreen,
-	}
 
 	ts := &taskScheduler{
 		duration:       10 * time.Second,
 		sch:            sch,
 		exec:           exec,
 		executorsCount: runtime.GOMAXPROCS(0),
-		withCui:        false,
-		screens:        screens,
-		terminal:       nil,
+		c:              nil,
 	}
 
 	for _, opt := range opts {
-		err = opt.apply(ts)
+		err := opt.apply(ts)
 		if err != nil {
 			return nil, err
 		}
@@ -127,7 +112,7 @@ func (ts *taskScheduler) getRunCuiFunc(ctx context.Context,
 	ch <-chan *metric.Result,
 	cuiDone chan<- bool,
 	dispatchDone <-chan bool) func() error {
-	if ts.withCui {
+	if ts.c != nil {
 		return func() error {
 			return ts.runCui(ctx, ch, cuiDone)
 		}
@@ -159,11 +144,6 @@ func (ts *taskScheduler) runCui(ctx context.Context, res <-chan *metric.Result, 
 	defer wg.Wait()
 	defer cancel()
 
-	ui, err := cui.NewCui(ts.terminal, ts.screens...)
-	if err != nil {
-		return err
-	}
-
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -177,10 +157,10 @@ func (ts *taskScheduler) runCui(ctx context.Context, res <-chan *metric.Result, 
 					continue
 				}
 
-				ui.AcceptMetric(m)
+				ts.c.AcceptMetric(m)
 			}
 		}
 	}()
 
-	return ui.Run(ctx, done)
+	return ts.c.Run(ctx, done)
 }

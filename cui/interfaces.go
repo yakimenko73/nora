@@ -3,7 +3,6 @@ package cui
 import (
 	"context"
 	"github.com/illatior/task-scheduler/core/metric"
-	"github.com/mum4k/termdash/container/grid"
 	"github.com/mum4k/termdash/widgetapi"
 	"github.com/mum4k/termdash/widgets/linechart"
 )
@@ -21,14 +20,6 @@ type ConsoleUserInterface interface {
 	PreviousScreen() error
 
 	IsFullscreen() bool
-}
-
-type Screen interface {
-	GetBody() grid.Element
-	GetHeader() grid.Element
-	GetFooter() grid.Element
-
-	UpdateWithLatencyMetrics(m metric.LatencyMetrics)
 }
 
 type InfoPanel interface {

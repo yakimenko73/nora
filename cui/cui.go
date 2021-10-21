@@ -3,6 +3,7 @@ package cui
 import (
 	"context"
 	"github.com/illatior/task-scheduler/core/metric"
+	"github.com/illatior/task-scheduler/cui/screen"
 	"github.com/mum4k/termdash"
 	"github.com/mum4k/termdash/container"
 	"github.com/mum4k/termdash/container/grid"
@@ -13,6 +14,8 @@ import (
 	"time"
 )
 
+type subsFunc func (ctx context.Context, cancel context.CancelFunc, ui *cui) func(*terminalapi.Keyboard)
+
 type cui struct {
 	isFullscreen bool
 
@@ -21,22 +24,29 @@ type cui struct {
 
 	screenMu      sync.RWMutex
 	currentScreen int
-	screens       []Screen
+	screens       []screen.Screen
 
-	zxDuration     time.Duration
-	updateInterval time.Duration
+	displayInterval time.Duration
+	updateInterval  time.Duration
 
 	metricsMu sync.RWMutex
-	metrics   *metric.Metrics
+	metrics   metric.Metrics
+
+	subs subsFunc
 }
 
-func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, error) {
+func NewCui(t terminalapi.Terminal, opts ...Option) (ConsoleUserInterface, error) {
 	c, err := container.New(
 		t,
 		container.ID(SCREEN_ID),
 		container.Border(linestyle.Light),
 		container.BorderTitle("Task-scheduler"),
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	mainScreen, err := screen.NewMainScreen()
 	if err != nil {
 		return nil, err
 	}
@@ -48,13 +58,23 @@ func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, er
 
 		screenMu:      sync.RWMutex{},
 		currentScreen: 0,
-		screens:       screens,
+		screens:       []screen.Screen{mainScreen},
 
-		zxDuration:     60 * time.Second, // TODO find a solution to configure it
-		updateInterval: 100 * time.Millisecond,
+		displayInterval: 60 * time.Second,
+		updateInterval:  100 * time.Millisecond,
 
-		metrics: &metric.Metrics{},
+		metrics: metric.NewMetrics(),
+
+		subs: defaultSubs(),
 	}
+
+	for _, opt := range opts {
+		err = opt.apply(ui)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	err = ui.changeMainScreen()
 	if err != nil {
 		return nil, err
@@ -70,27 +90,15 @@ func (ui *cui) Run(ctx context.Context, done chan<- bool) error {
 
 	ctx, cancel := context.WithCancel(ctx)
 	go ui.update(ctx)
+	go func() {
+		for _, s := range ui.screens {
+			go s.Run(ctx)
+		}
+	}()
 
+	// TODO add ability to customize subs with option
 	// TODO add +/- handlers for increasing/decreasing displayable period
-	subs := func(k *terminalapi.Keyboard) {
-		var err error
-		switch k.Key {
-		case 'Q', 'q', keyboard.KeyCtrlC:
-			cancel()
-		case 'A', 'a':
-			err = ui.PreviousScreen()
-		case 'D', 'd':
-			err = ui.NextScreen()
-		case 'F', 'f':
-			err = ui.ChangeFullscreenState()
-		default:
-			return
-		}
-
-		if err != nil {
-			panic(err)
-		}
-	}
+	subs := ui.subs(ctx, cancel, ui)
 
 	defer func() {
 		ui.t.Close()
@@ -103,14 +111,6 @@ func (ui *cui) AcceptMetric(m *metric.Result) {
 	defer ui.metricsMu.Unlock()
 
 	ui.metrics.ConsumeResult(m)
-	ui.truncateResults()
-}
-
-func (ui *cui) truncateResults() {
-	// FIXME optimize it
-	now := time.Now()
-	from := now.Add(-ui.zxDuration)
-	ui.metrics = ui.metrics.TruncateMetrics(from, now)
 }
 
 func (ui *cui) update(ctx context.Context) {
@@ -122,15 +122,9 @@ func (ui *cui) update(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			//ui.screenMu.Lock()
-			//metrics := *ui.metrics
-			//ui.screenMu.Unlock()
-			//
-			//currentScreen := ui.screens[ui.currentScreen]
-			//
-			//latencyMetrics := metrics.GetLatencyMetrics()
-			//
-			//currentScreen.UpdateWithLatencyMetrics(latencyMetrics)
+			currentScreen := ui.screens[ui.currentScreen]
+
+			currentScreen.GetMetricsChan() <- ui.metrics
 		}
 	}
 }
@@ -187,6 +181,30 @@ func (ui *cui) changeMainScreen() error { // FIXME after exiting fullscreen mode
 
 func (ui *cui) IsFullscreen() bool {
 	return ui.isFullscreen
+}
+
+func defaultSubs() subsFunc {
+	return func (ctx context.Context, cancel context.CancelFunc, ui *cui) func(*terminalapi.Keyboard) {
+		return func(k *terminalapi.Keyboard) {
+			var err error
+			switch k.Key {
+			case 'Q', 'q', keyboard.KeyCtrlC:
+				cancel()
+			case 'A', 'a':
+				err = ui.PreviousScreen()
+			case 'D', 'd':
+				err = ui.NextScreen()
+			case 'F', 'f':
+				err = ui.ChangeFullscreenState()
+			default:
+				return
+			}
+
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
 }
 
 func addElem(e grid.Element, b *grid.Builder) {

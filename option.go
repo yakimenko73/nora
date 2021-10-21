@@ -64,7 +64,7 @@ func createTerminal() (terminalapi.Terminal, error) {
 	return termbox.New(termbox.ColorMode(terminalapi.ColorMode216))
 }
 
-func WithConsoleUserInterface() Option {
+func WithConsoleUserInterface(opts ...cui.Option) Option {
 
 	return option(func(ts *taskScheduler) error {
 		t, err := createTerminal()
@@ -72,25 +72,16 @@ func WithConsoleUserInterface() Option {
 			return err
 		}
 
-		ts.withCui = true
-		ts.terminal = t
+		ts.c, err = cui.NewCui(t, opts...)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 }
 
-func WithoutDefaultScreens() Option {
-	return option(func(ts *taskScheduler) error {
-		ts.screens = nil
-		return nil
-	})
-}
 
-func WithCustomScreen(s cui.Screen) Option {
-	return option(func(ts *taskScheduler) error {
-		ts.screens = append(ts.screens, s)
-		return nil
-	})
-}
 
 func WithTask(name string, f func (context.Context) error) Option {
 	return option(func(ts *taskScheduler) error {

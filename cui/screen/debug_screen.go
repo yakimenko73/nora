@@ -2,14 +2,13 @@ package screen
 
 import (
 	"github.com/illatior/task-scheduler/core/metric"
-	"github.com/illatior/task-scheduler/cui"
 	"github.com/mum4k/termdash/container/grid"
 )
 
 type debugScreen struct {
 }
 
-func NewDebugScreen() (cui.Screen, error) {
+func NewDebugScreen() (Screen, error) {
 	return nil, nil
 }
 
