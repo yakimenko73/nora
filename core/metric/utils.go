@@ -1,19 +1,15 @@
 package metric
 
 import (
-	"math"
-	"time"
+	"sort"
 )
 
-func calculatePercentile(durations []time.Duration, percentile float64) time.Duration {
-	x := percentile/100*float64(len(durations)-1) + 1
+func sortedInsert(entries []*ChartEntry, entry *ChartEntry) []*ChartEntry {
+	idx := sort.Search(len(entries), func(i int) bool { return entries[i].Timestamp.After(entry.Timestamp) })
+	entries = append(entries, &ChartEntry{})
 
-	_, f := math.Modf(x)
+	copy(entries[idx+1:], entries[idx:])
+	entries[idx] = entry
 
-	cur := float64(durations[int(x)-1])
-	next := cur
-	if len(durations)-1 > int(x) {
-		next = float64(durations[int(x)])
-	}
-	return time.Duration(cur + f*(next-cur))
+	return entries
 }
