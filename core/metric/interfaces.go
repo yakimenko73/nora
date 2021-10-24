@@ -25,7 +25,8 @@ type ExecutionStatistic interface {
 
 	GetTotalExecuted() uint64
 	GetTotalSuccess() uint64
-	GetErrors() map[string]uint64
+	GetErrors() []string
+	GetErrorsCount(err string) uint64
 }
 
 type ChartMetrics interface {

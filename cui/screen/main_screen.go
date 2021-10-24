@@ -16,21 +16,6 @@ const (
 	mainScreenLineChartId = "mainScreen-lineChart"
 )
 
-const (
-	latenciesPattern = `Total: %v
-
-Min: %v
-Max: %v
-
-Q1: %v
-Median: %v
-Q3: %v
-
-P90: %v
-P95: %v
-P99: %v`
-)
-
 type mainScreen struct {
 	opts screenOpts
 
@@ -44,8 +29,8 @@ type mainScreen struct {
 	optionsText   *text.Text
 	latenciesText *text.Text
 	responsesText *text.Text
-	errorsText  *text.Text
-	errorCounts *barchart.BarChart
+	errorsText    *text.Text
+	errorCounts   *barchart.BarChart
 
 	metricsCh chan metric.Metrics
 	// todo add information for debug like duration, requests, responses, throughput, ...
@@ -58,12 +43,12 @@ func NewMainScreen() (Screen, error) {
 	}
 
 	body := grid.RowHeightPerc(
-		70,
+		65,
 		grid.Widget(m.latencyChart, borderLight(), borderTitle("Latency (ms)")),
 	)
 
 	footer := grid.RowHeightPerc(
-		30,
+		35,
 		grid.ColWidthPerc(10, grid.Widget(m.optionsText, borderLight(), borderTitle("Run options"))),
 		grid.ColWidthPerc(20, grid.Widget(m.latenciesText, borderLight(), borderTitle("Latencies"))),
 		grid.ColWidthPerc(20, grid.Widget(m.responsesText, borderLight(), borderTitle("Responses"))),
@@ -115,7 +100,7 @@ func buildMainScreen() (*mainScreen, error) {
 		errorsText:    errorsText,
 		errorCounts:   errorsCount,
 
-		metricsCh: make(chan metric.Metrics, 10), // TODO
+		metricsCh: make(chan metric.Metrics),
 	}, nil
 }
 
@@ -135,7 +120,7 @@ func (s *mainScreen) GetMetricsChan() chan<- metric.Metrics {
 	return s.metricsCh
 }
 
-func (s *mainScreen) Run(ctx context.Context)  {
+func (s *mainScreen) Run(ctx context.Context) {
 	defer close(s.metricsCh)
 
 	for {
@@ -150,6 +135,9 @@ func (s *mainScreen) Run(ctx context.Context)  {
 
 			chartMetrics := m.GetChartMetrics()
 			s.updateWithChartMetrics(chartMetrics)
+
+			latencyMetrics := m.GetLatencyMetrics()
+			s.updateWithLatencyMetrics(latencyMetrics)
 		}
 	}
 }
@@ -163,7 +151,6 @@ Error: %v`
 )
 
 func (s *mainScreen) updateWithExecutionStatistic(es metric.ExecutionStatistic) {
-
 	// update responses text
 	total := es.GetTotalExecuted()
 	success := es.GetTotalSuccess()
@@ -173,22 +160,19 @@ func (s *mainScreen) updateWithExecutionStatistic(es metric.ExecutionStatistic) 
 	)
 
 	errors := es.GetErrors()
-
-	var keys []string
-	for e, _ := range errors {
-		keys = append(keys, e)
-	}
-	sort.Strings(keys)
+	sort.Strings(errors)
 
 	errorsText := ""
 	var errorCounts []int
 	maxCount := 0
 	// update errors text
-	for _, k := range keys {
-		errorsText += fmt.Sprintf(errorsPattern, k, errors[k])
-		errorCounts = append(errorCounts, int(errors[k]))
-		if int(errors[k]) > maxCount {
-			maxCount = int(errors[k])
+	for _, err := range errors {
+		errorsCount := es.GetErrorsCount(err)
+
+		errorsText += fmt.Sprintf(errorsPattern, err, errorsCount)
+		errorCounts = append(errorCounts, int(errorsCount))
+		if int(errorsCount) > maxCount {
+			maxCount = int(errorsCount)
 		}
 	}
 	s.errorsText.Write(
@@ -205,7 +189,7 @@ func (s *mainScreen) updateWithExecutionStatistic(es metric.ExecutionStatistic) 
 
 func (s *mainScreen) updateWithChartMetrics(cm metric.ChartMetrics) {
 	to := time.Now()
-	from := to.Add(-time.Second*10)
+	from := to.Add(-time.Second * 30)
 
 	r := cm.GetInRange(from, to)
 
@@ -213,9 +197,31 @@ func (s *mainScreen) updateWithChartMetrics(cm metric.ChartMetrics) {
 	for _, v := range r {
 		values = append(values, float64(v.Duration/time.Millisecond))
 	}
-	err := s.latencyChart.Series(
+	s.latencyChart.Series(
 		"Request duration (in ms)",
 		values,
 	)
-	fmt.Println(err)
+}
+
+const (
+	latenciesPattern = `Avg: %v
+Min: %v
+Max: %v
+
+Q1:     %v
+Median: %v
+Q3:     %v
+P90: %v
+P95: %v
+P99: %v`
+)
+
+func (s *mainScreen) updateWithLatencyMetrics(lm metric.LatencyMetrics) {
+	s.latenciesText.Write(
+		fmt.Sprintf(latenciesPattern,
+			lm.GetAvg(), lm.GetMin(), lm.GetMax(),
+			lm.GetPercentile(25), lm.GetPercentile(50), lm.GetPercentile(75),
+			lm.GetPercentile(90), lm.GetPercentile(95), lm.GetPercentile(99)),
+		text.WriteReplace(),
+	)
 }

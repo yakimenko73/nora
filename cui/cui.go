@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-type subsFunc func (ctx context.Context, cancel context.CancelFunc, ui *cui) func(*terminalapi.Keyboard)
+type subsFunc func(ctx context.Context, cancel context.CancelFunc, ui *cui) func(*terminalapi.Keyboard)
 
 type cui struct {
 	isFullscreen bool
@@ -124,7 +124,12 @@ func (ui *cui) update(ctx context.Context) {
 		case <-t.C:
 			currentScreen := ui.screens[ui.currentScreen]
 
-			currentScreen.GetMetricsChan() <- ui.metrics
+			select {
+			case <-ctx.Done():
+				return
+			case currentScreen.GetMetricsChan() <- ui.metrics:
+				break
+			}
 		}
 	}
 }
@@ -184,7 +189,7 @@ func (ui *cui) IsFullscreen() bool {
 }
 
 func defaultSubs() subsFunc {
-	return func (ctx context.Context, cancel context.CancelFunc, ui *cui) func(*terminalapi.Keyboard) {
+	return func(ctx context.Context, cancel context.CancelFunc, ui *cui) func(*terminalapi.Keyboard) {
 		return func(k *terminalapi.Keyboard) {
 			var err error
 			switch k.Key {

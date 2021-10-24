@@ -23,7 +23,7 @@ func (cm *chartMetrics) ConsumeResult(res *Result) {
 
 func (cm *chartMetrics) GetInRange(from, to time.Time) []ChartEntry {
 	res := make([]ChartEntry, 0)
-	for i := len(cm.entries)-1; i >= 0; i-- {
+	for i := len(cm.entries) - 1; i >= 0; i-- {
 		entry := *cm.entries[i]
 		if !(entry.Timestamp.After(to) || entry.Timestamp.Before(from)) {
 			res = append(res, entry)

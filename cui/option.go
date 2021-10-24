@@ -19,7 +19,7 @@ func (o option) apply(ui *cui) error {
 }
 
 func WithDisplayInterval(d time.Duration) Option {
-	return option(func (ui *cui) error {
+	return option(func(ui *cui) error {
 		if d <= 0 {
 			return errors.New("display interval should be > 0")
 		}

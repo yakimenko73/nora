@@ -13,3 +13,11 @@ func sortedInsert(entries []*ChartEntry, entry *ChartEntry) []*ChartEntry {
 
 	return entries
 }
+
+func max(x, y int) int {
+	if x > y {
+		return x
+	}
+
+	return y
+}

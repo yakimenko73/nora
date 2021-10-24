@@ -4,23 +4,51 @@ import (
 	"context"
 	"github.com/illatior/task-scheduler/core/executor"
 	"github.com/illatior/task-scheduler/core/metric"
-	"github.com/illatior/task-scheduler/core/scheduler"
+	"runtime"
 	"sync"
 	"time"
 )
 
-func Dispatch(ctx context.Context, scheduler scheduler.Scheduler, executor executor.Executor, duration time.Duration, workers int) <-chan *metric.Result {
+type Dispatcher struct {
+	exec executor.Executor
+
+	configuration *LoadOptions
+}
+
+func NewDispatcher(opts ...Option) (*Dispatcher, error) {
+	d := &Dispatcher{
+		configuration: &LoadOptions{
+			Duration:  5 * time.Second,
+			Workers:   runtime.GOMAXPROCS(0),
+			Frequency: 1,
+			Period:    1 * time.Second,
+		},
+		exec: executor.New(),
+	}
+
+	var err error
+	for _, opt := range opts {
+		err = opt.apply(d)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return d, err
+}
+
+func (d *Dispatcher) Dispatch(ctx context.Context) <-chan *metric.Result {
 	var wg sync.WaitGroup
 
-	ticks := make(chan interface{}, workers)
-	results := make(chan *metric.Result, workers)
+	ticks := make(chan interface{}, d.configuration.Workers)
+	results := make(chan *metric.Result, d.configuration.Workers)
 	ctx, workerCancel := context.WithCancel(ctx)
 
-	for i := 0; i < workers; i++ {
+	for i := 0; i < d.configuration.Workers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			executor.ScheduleExecution(ctx, ticks, results)
+			d.exec.ScheduleExecution(ctx, ticks, results)
 		}()
 	}
 
@@ -40,11 +68,11 @@ func Dispatch(ctx context.Context, scheduler scheduler.Scheduler, executor execu
 			}
 
 			timeElapsed := time.Since(start)
-			if timeElapsed > duration && duration != 0 {
+			if timeElapsed > d.configuration.Duration && d.configuration.Duration != 0 {
 				return
 			}
 
-			next, stop := scheduler.GetNextExecution(timeElapsed, executed)
+			next, stop := d.nextExecution(timeElapsed, executed)
 			if stop {
 				return
 			}
@@ -56,4 +84,23 @@ func Dispatch(ctx context.Context, scheduler scheduler.Scheduler, executor execu
 	}()
 
 	return results
+}
+
+func (d *Dispatcher) LoadOptions() LoadOptions {
+	return *d.configuration
+}
+
+func (d *Dispatcher) nextExecution(elapsed time.Duration, hits uint64) (time.Duration, bool) {
+	if d.configuration.Frequency == 0 { // infinite frequency
+		return 0, false
+	}
+
+	interval := uint64(d.configuration.Period) / d.configuration.Frequency
+	expectedHits := uint64(elapsed) / interval
+	if expectedHits > hits {
+		return 0, false
+	}
+
+	next := time.Duration((hits + 1) * interval)
+	return next - elapsed, false
 }
