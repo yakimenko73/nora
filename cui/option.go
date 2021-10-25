@@ -18,13 +18,13 @@ func (o option) apply(ui *cui) error {
 	return o(ui)
 }
 
-func WithDisplayInterval(d time.Duration) Option {
+func WithChangeDisplayableIntervalDelta(d time.Duration) Option {
 	return option(func(ui *cui) error {
 		if d <= 0 {
-			return errors.New("display interval should be > 0")
+			return errors.New("`change displayable interval delta` should be > 0")
 		}
 
-		ui.displayInterval = d
+		ui.changeDisplayableIntervalDelta = d
 		return nil
 	})
 }

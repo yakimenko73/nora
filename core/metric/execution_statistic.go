@@ -1,6 +1,7 @@
 package metric
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 )
@@ -65,4 +66,25 @@ func (es *executionStatistic) GetErrorsCount(err string) uint64 {
 	}
 
 	return c
+}
+
+const (
+	executionStatisticPattern = `Total executed: %v
+Total success: %v
+Errors:
+%v
+`
+	errorsEntryPattern = "%v: %v\n"
+)
+
+func (es *executionStatistic) String() string {
+	var errors string
+	for err, c := range es.errors {
+		errors += fmt.Sprintf(errorsEntryPattern, err, c)
+	}
+
+	return fmt.Sprintf(
+		executionStatisticPattern,
+		es.totalExecuted, es.totalSuccess, errors,
+	)
 }

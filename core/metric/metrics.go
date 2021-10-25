@@ -1,5 +1,7 @@
 package metric
 
+import "fmt"
+
 type metrics struct {
 	latencyMetrics     LatencyMetrics
 	executionStatistic ExecutionStatistic
@@ -30,4 +32,17 @@ func (m *metrics) GetExecutionStatistic() ExecutionStatistic {
 
 func (m *metrics) GetChartMetrics() ChartMetrics {
 	return m.chartMetrics
+}
+
+const (
+	metricsPattern = `Execution statistic:
+%v
+
+Latency metrics: 
+%v
+`
+)
+
+func (m *metrics) String() string {
+	return fmt.Sprintf(metricsPattern, m.executionStatistic.String(), m.latencyMetrics.String())
 }

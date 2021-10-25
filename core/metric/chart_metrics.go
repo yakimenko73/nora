@@ -1,6 +1,9 @@
 package metric
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type chartMetrics struct {
 	entries []*ChartEntry
@@ -28,6 +31,19 @@ func (cm *chartMetrics) GetInRange(from, to time.Time) []ChartEntry {
 		if !(entry.Timestamp.After(to) || entry.Timestamp.Before(from)) {
 			res = append(res, entry)
 		}
+	}
+
+	return res
+}
+
+const (
+	chartEntryPattern = "%v,%v\n"
+)
+
+func (cm *chartMetrics) String() string {
+	var res string
+	for _, entry := range cm.entries {
+		res += fmt.Sprintf(chartEntryPattern, entry.Timestamp, entry.Duration)
 	}
 
 	return res

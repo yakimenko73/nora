@@ -17,6 +17,8 @@ const (
 )
 
 type mainScreen struct {
+	displayInterval time.Duration
+
 	opts screenOpts
 
 	// header
@@ -93,6 +95,8 @@ func buildMainScreen() (*mainScreen, error) {
 	}
 
 	return &mainScreen{
+		displayInterval: 30 * time.Second,
+
 		latencyChart:  latencyChart,
 		optionsText:   optionsText,
 		latenciesText: latenciesText,
@@ -118,6 +122,13 @@ func (s *mainScreen) GetFooter() grid.Element {
 
 func (s *mainScreen) GetMetricsChan() chan<- metric.Metrics {
 	return s.metricsCh
+}
+
+func (s *mainScreen) ChangeDisplayInterval(t time.Duration) {
+	s.displayInterval += t
+	if s.displayInterval <= 0 {
+		s.displayInterval = time.Second
+	}
 }
 
 func (s *mainScreen) Run(ctx context.Context) {
@@ -189,7 +200,7 @@ func (s *mainScreen) updateWithExecutionStatistic(es metric.ExecutionStatistic) 
 
 func (s *mainScreen) updateWithChartMetrics(cm metric.ChartMetrics) {
 	to := time.Now()
-	from := to.Add(-time.Second * 30)
+	from := to.Add(-s.displayInterval)
 
 	r := cm.GetInRange(from, to)
 

@@ -6,7 +6,6 @@ import (
 	"github.com/illatior/task-scheduler/core/metric"
 	"github.com/illatior/task-scheduler/cui"
 	"golang.org/x/sync/errgroup"
-	"sync"
 )
 
 type taskScheduler struct {
@@ -21,7 +20,7 @@ func New(opts ...Option) (*taskScheduler, error) {
 	}
 
 	ts := &taskScheduler{
-		c: nil,
+		c: cui.NewCuiMock(),
 		d: d,
 	}
 
@@ -51,21 +50,18 @@ func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
 		defer cancel()
 
 		dispatchDone := make(chan bool, 1)
-		cuiDone := make(chan bool, 1)
 
 		eg.Go(func() error {
 			return runMetricRepeater(ctx, userRes, uiRes, res, dispatchDone)
 		})
-
-		runCiFunc := ts.getRunCuiFunc(ctx, uiRes, cuiDone, dispatchDone)
 		eg.Go(func() error {
-			return runCiFunc()
+			return ts.c.Run(ctx, uiRes, dispatchDone)
 		})
 
 		select {
 		case <-ctx.Done():
 			return
-		case <-cuiDone:
+		case <-ts.c.GetDoneChan():
 			return
 		}
 	}()
@@ -99,61 +95,4 @@ func runMetricRepeater(ctx context.Context,
 		}
 	}
 	return nil
-}
-
-func (ts *taskScheduler) getRunCuiFunc(ctx context.Context,
-	ch <-chan *metric.Result,
-	cuiDone chan<- bool,
-	dispatchDone <-chan bool) func() error {
-	if ts.c != nil {
-		return func() error {
-			return ts.runCui(ctx, ch, cuiDone)
-		}
-	}
-
-	return func() error {
-		defer func() {
-			cuiDone <- true
-		}()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			case <-dispatchDone:
-				return nil
-			case <-ch:
-				continue
-			}
-		}
-	}
-}
-
-// runCui method is blocking
-func (ts *taskScheduler) runCui(ctx context.Context, res <-chan *metric.Result, done chan<- bool) error {
-	var wg sync.WaitGroup
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer wg.Wait()
-	defer cancel()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case m := <-res:
-				if m == nil {
-					continue
-				}
-
-				ts.c.AcceptMetric(m)
-			}
-		}
-	}()
-
-	return ts.c.Run(ctx, done)
 }

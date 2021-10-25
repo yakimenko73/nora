@@ -1,6 +1,7 @@
 package metric
 
 import (
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -62,7 +63,7 @@ func (lm *latencyMetrics) ConsumeResult(res *Result) {
 }
 
 func (lm *latencyMetrics) GetPercentile(p int) time.Duration {
-	if lm.percentilesTree == nil || lm.percentilesTree.count < p {
+	if lm.percentilesTree == nil {
 		return 0
 	}
 
@@ -79,6 +80,28 @@ func (lm *latencyMetrics) GetMax() time.Duration {
 
 func (lm *latencyMetrics) GetAvg() time.Duration {
 	return time.Duration(uint64(lm.avg))
+}
+
+const (
+	latencyMetricsPattern = `Min: %v
+Max: %v
+Avg: %v
+
+Q1: %v
+Q2: %v
+Q3: %v
+P90: %v
+P95: %v
+P99: %v`
+)
+
+func (lm *latencyMetrics) String() string {
+	return fmt.Sprintf(
+		latencyMetricsPattern,
+		lm.min, lm.max, lm.avg,
+		lm.GetPercentile(25), lm.GetPercentile(50), lm.GetPercentile(75),
+		lm.GetPercentile(90), lm.GetPercentile(95), lm.GetPercentile(99),
+	)
 }
 
 func newNode(val time.Duration) *node {

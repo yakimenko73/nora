@@ -12,8 +12,8 @@ const (
 )
 
 type ConsoleUserInterface interface {
-	Run(ctx context.Context, done chan<- bool) error
-	AcceptMetric(m *metric.Result)
+	Run(ctx context.Context, metrics <-chan *metric.Result, dispatchDone <-chan bool) error
+	GetDoneChan() <-chan bool
 
 	ChangeFullscreenState() error
 	NextScreen() error

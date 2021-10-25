@@ -7,14 +7,11 @@ import (
 	"github.com/mum4k/termdash"
 	"github.com/mum4k/termdash/container"
 	"github.com/mum4k/termdash/container/grid"
-	"github.com/mum4k/termdash/keyboard"
 	"github.com/mum4k/termdash/linestyle"
 	"github.com/mum4k/termdash/terminal/terminalapi"
 	"sync"
 	"time"
 )
-
-type subsFunc func(ctx context.Context, cancel context.CancelFunc, ui *cui) func(*terminalapi.Keyboard)
 
 type cui struct {
 	isFullscreen bool
@@ -26,13 +23,15 @@ type cui struct {
 	currentScreen int
 	screens       []screen.Screen
 
-	displayInterval time.Duration
-	updateInterval  time.Duration
+	updateInterval                 time.Duration
+	changeDisplayableIntervalDelta time.Duration
 
 	metricsMu sync.RWMutex
 	metrics   metric.Metrics
 
 	subs subsFunc
+
+	done chan bool
 }
 
 func NewCui(t terminalapi.Terminal, opts ...Option) (ConsoleUserInterface, error) {
@@ -60,12 +59,13 @@ func NewCui(t terminalapi.Terminal, opts ...Option) (ConsoleUserInterface, error
 		currentScreen: 0,
 		screens:       []screen.Screen{mainScreen},
 
-		displayInterval: 60 * time.Second,
-		updateInterval:  100 * time.Millisecond,
+		updateInterval:                 100 * time.Millisecond,
+		changeDisplayableIntervalDelta: 5 * time.Second,
 
 		metrics: metric.NewMetrics(),
 
 		subs: defaultSubs(),
+		done: make(chan bool),
 	}
 
 	for _, opt := range opts {
@@ -83,9 +83,9 @@ func NewCui(t terminalapi.Terminal, opts ...Option) (ConsoleUserInterface, error
 	return ui, nil
 }
 
-func (ui *cui) Run(ctx context.Context, done chan<- bool) error {
+func (ui *cui) Run(ctx context.Context, metrics <-chan *metric.Result, dispatchDone <-chan bool) error {
 	defer func() {
-		done <- true
+		ui.done <- true
 	}()
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -96,8 +96,20 @@ func (ui *cui) Run(ctx context.Context, done chan<- bool) error {
 		}
 	}()
 
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case m := <-metrics:
+				ui.metricsMu.Lock()
+				ui.metrics.ConsumeResult(m)
+				ui.metricsMu.Unlock()
+			}
+		}
+	}()
+
 	// TODO add ability to customize subs with option
-	// TODO add +/- handlers for increasing/decreasing displayable period
 	subs := ui.subs(ctx, cancel, ui)
 
 	defer func() {
@@ -106,11 +118,8 @@ func (ui *cui) Run(ctx context.Context, done chan<- bool) error {
 	return termdash.Run(ctx, ui.t, ui.c, termdash.KeyboardSubscriber(subs))
 }
 
-func (ui *cui) AcceptMetric(m *metric.Result) {
-	ui.metricsMu.Lock()
-	defer ui.metricsMu.Unlock()
-
-	ui.metrics.ConsumeResult(m)
+func (ui *cui) GetDoneChan() <-chan bool {
+	return ui.done
 }
 
 func (ui *cui) update(ctx context.Context) {
@@ -186,34 +195,4 @@ func (ui *cui) changeMainScreen() error { // FIXME after exiting fullscreen mode
 
 func (ui *cui) IsFullscreen() bool {
 	return ui.isFullscreen
-}
-
-func defaultSubs() subsFunc {
-	return func(ctx context.Context, cancel context.CancelFunc, ui *cui) func(*terminalapi.Keyboard) {
-		return func(k *terminalapi.Keyboard) {
-			var err error
-			switch k.Key {
-			case 'Q', 'q', keyboard.KeyCtrlC:
-				cancel()
-			case 'A', 'a':
-				err = ui.PreviousScreen()
-			case 'D', 'd':
-				err = ui.NextScreen()
-			case 'F', 'f':
-				err = ui.ChangeFullscreenState()
-			default:
-				return
-			}
-
-			if err != nil {
-				panic(err)
-			}
-		}
-	}
-}
-
-func addElem(e grid.Element, b *grid.Builder) {
-	if e != nil {
-		b.Add(e)
-	}
 }
