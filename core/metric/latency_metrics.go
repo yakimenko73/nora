@@ -101,7 +101,11 @@ func (n *node) getHeight() int {
 }
 
 func (n *node) getBalanceFactor() int {
-	return n.right.getHeight() - n.left.getHeight()
+	if n == nil {
+		return 0
+	}
+
+	return n.left.getHeight() - n.right.getHeight()
 }
 
 func (n *node) fixHeight() {
@@ -137,20 +141,20 @@ func (n *node) findPercentile(percentile int) time.Duration {
 	x := float64(percentile)/float64(100)*float64(n.count-1) + 1
 	abs, frac := math.Modf(x)
 
-	return n.getValueByIndex(int(abs), 0) + time.Duration(frac)*(n.getValueByIndex(int(abs)+1, 0)-n.getValueByIndex(int(abs)+1, 0))
+	return n.getValueByIndex(int(abs)) + time.Duration(frac)*(n.getValueByIndex(int(abs)+1)-n.getValueByIndex(int(abs)+1))
 }
 
-func (n *node) getValueByIndex(idx, passed int) time.Duration {
-	lc := n.left.getItemsCount()
+func (n *node) getValueByIndex(idx int) time.Duration {
+	lc := n.left.getCount()
 
-	if passed+lc >= idx {
-		return n.left.getValueByIndex(idx, 0)
+	if lc >= idx {
+		return n.left.getValueByIndex(idx)
 	}
-	if passed+n.itemsCount+lc >= idx {
+	if n.itemsCount+lc >= idx {
 		return n.value
 	}
 
-	return n.right.getValueByIndex(idx, passed+n.itemsCount+lc)
+	return n.right.getValueByIndex(idx - lc - n.itemsCount)
 }
 
 func (n *node) insert(v time.Duration) {
@@ -160,22 +164,22 @@ func (n *node) insert(v time.Duration) {
 		n.rebalance()
 	}()
 
-	if v > n.value {
-		if n.right == nil {
-			n.right = newNode(v)
-			return
-		}
-
-		n.right.itemsCount++
-		return
-	}
 	if v < n.value {
 		if n.left == nil {
 			n.left = newNode(v)
 			return
 		}
 
-		n.left.itemsCount++
+		n.left.insert(v)
+		return
+	}
+	if v > n.value {
+		if n.right == nil {
+			n.right = newNode(v)
+			return
+		}
+
+		n.right.insert(v)
 		return
 	}
 
