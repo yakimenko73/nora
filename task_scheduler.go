@@ -3,58 +3,29 @@ package task_scheduler
 import (
 	"context"
 	"github.com/illatior/task-scheduler/core"
-	"github.com/illatior/task-scheduler/core/executor"
 	"github.com/illatior/task-scheduler/core/metric"
-	"github.com/illatior/task-scheduler/core/scheduler"
 	"github.com/illatior/task-scheduler/cui"
-	"github.com/illatior/task-scheduler/cui/screen"
-	"github.com/mum4k/termdash/terminal/terminalapi"
 	"golang.org/x/sync/errgroup"
-	"runtime"
-	"sync"
-	"time"
 )
 
 type taskScheduler struct {
-	duration time.Duration
-
-	executorsCount int
-	sch  scheduler.Scheduler
-	exec executor.Executor
-
-	withCui  bool
-	screens  []cui.Screen
-	terminal terminalapi.Terminal
+	c cui.ConsoleUserInterface
+	d *core.Dispatcher
 }
 
 func New(opts ...Option) (*taskScheduler, error) {
-	sch := scheduler.ConstantScheduler{
-		Frequency: 1,
-		Period:    1 * time.Second,
-	}
-	exec := executor.New()
-
-	mainScreen, err := screen.NewMainScreen()
+	d, err := core.NewDispatcher()
 	if err != nil {
 		return nil, err
 	}
 
-	screens := []cui.Screen{
-		mainScreen,
-	}
-
 	ts := &taskScheduler{
-		duration:       10 * time.Second,
-		sch:            sch,
-		exec:           exec,
-		executorsCount: runtime.GOMAXPROCS(0),
-		withCui:        false,
-		screens:        screens,
-		terminal:       nil,
+		c: cui.NewCuiMock(),
+		d: d,
 	}
 
 	for _, opt := range opts {
-		err = opt.apply(ts)
+		err := opt.apply(ts)
 		if err != nil {
 			return nil, err
 		}
@@ -63,18 +34,13 @@ func New(opts ...Option) (*taskScheduler, error) {
 	return ts, nil
 }
 
-//func (ts *taskScheduler) Run(ctx context.Context) <-chan
-//
-//func (ts *taskScheduler) RunWithRawResults(ctx context.Context) <-chan *metric.Result {
-//
-//}
-
 func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
 	ctx, cancel := context.WithCancel(ctx)
 	eg, ctx := errgroup.WithContext(ctx)
 
-	res := core.Dispatch(ctx, ts.sch, ts.exec, ts.duration, ts.executorsCount)
+	res := ts.d.Dispatch(ctx)
 
+	// TODO add errs chan with exiting after receiving any error and replace errgroup with it
 	userRes := make(chan *metric.Result)
 	uiRes := make(chan *metric.Result)
 	go func() {
@@ -84,21 +50,18 @@ func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
 		defer cancel()
 
 		dispatchDone := make(chan bool, 1)
-		cuiDone := make(chan bool, 1)
 
 		eg.Go(func() error {
 			return runMetricRepeater(ctx, userRes, uiRes, res, dispatchDone)
 		})
-
-		runCiFunc := ts.getRunCuiFunc(ctx, uiRes, cuiDone, dispatchDone)
 		eg.Go(func() error {
-			return runCiFunc()
+			return ts.c.Run(ctx, uiRes, dispatchDone)
 		})
 
 		select {
 		case <-ctx.Done():
 			return
-		case <-cuiDone:
+		case <-ts.c.GetDoneChan():
 			return
 		}
 	}()
@@ -114,71 +77,22 @@ func runMetricRepeater(ctx context.Context,
 		done <- true
 	}()
 
+	// TODO find a better solution to duplicate execution results
+	trySendToCh := func(ctx context.Context, m *metric.Result, c chan<- *metric.Result) bool {
+		select {
+		case <-ctx.Done():
+			return false
+		case c <- m:
+			return true
+		}
+	}
 	for m := range resCh {
-		userCh <- m
-		uiCh <- m
+		if !trySendToCh(ctx, m, userCh) {
+			return nil
+		}
+		if !trySendToCh(ctx, m, uiCh) {
+			return nil
+		}
 	}
 	return nil
-}
-
-func (ts *taskScheduler) getRunCuiFunc(ctx context.Context,
-	ch <-chan *metric.Result,
-	cuiDone chan<- bool,
-	dispatchDone <-chan bool) func() error {
-	if ts.withCui {
-		return func() error {
-			return ts.runCui(ctx, ch, cuiDone)
-		}
-	}
-
-	return func() error {
-		defer func() {
-			cuiDone <- true
-		}()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			case <-dispatchDone:
-				return nil
-			case <-ch:
-				continue
-			}
-		}
-	}
-}
-
-// runCui method is blocking
-func (ts *taskScheduler) runCui(ctx context.Context, res <-chan *metric.Result, done chan<- bool) error {
-	var wg sync.WaitGroup
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer wg.Wait()
-	defer cancel()
-
-	ui, err := cui.NewCui(ts.terminal, ts.screens...)
-	if err != nil {
-		return err
-	}
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case m := <-res:
-				if m == nil {
-					continue
-				}
-
-				ui.AcceptMetric(m)
-			}
-		}
-	}()
-
-	return ui.Run(ctx, done)
 }

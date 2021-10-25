@@ -2,44 +2,36 @@ package cui
 
 import (
 	"context"
-	"github.com/illatior/task-scheduler/core/metric"
-	"github.com/mum4k/termdash/container/grid"
-	"github.com/mum4k/termdash/widgetapi"
-	"github.com/mum4k/termdash/widgets/linechart"
+	"github.com/mum4k/termdash/keyboard"
+	"github.com/mum4k/termdash/terminal/terminalapi"
 )
 
-const (
-	SCREEN_ID = "scr"
-)
+type subsFunc func(ctx context.Context, cancel context.CancelFunc, ui *cui) func(*terminalapi.Keyboard)
 
-type ConsoleUserInterface interface {
-	Run(ctx context.Context, done chan<- bool) error
-	AcceptMetric(m *metric.Result)
+func defaultSubs() subsFunc {
+	return func(ctx context.Context, cancel context.CancelFunc, ui *cui) func(*terminalapi.Keyboard) {
+		return func(k *terminalapi.Keyboard) {
+			var err error
+			switch k.Key {
+			case 'Q', 'q', keyboard.KeyCtrlC:
+				cancel()
+			case 'A', 'a':
+				err = ui.PreviousScreen()
+			case 'D', 'd':
+				err = ui.NextScreen()
+			case 'F', 'f':
+				err = ui.ChangeFullscreenState()
+			case '+':
+				ui.screens[ui.currentScreen].ChangeDisplayInterval(ui.changeDisplayableIntervalDelta)
+			case '-':
+				ui.screens[ui.currentScreen].ChangeDisplayInterval(-ui.changeDisplayableIntervalDelta)
+			default:
+				return
+			}
 
-	ChangeFullscreenState() error
-	NextScreen() error
-	PreviousScreen() error
-
-	IsFullscreen() bool
-}
-
-type Screen interface {
-	GetBody() grid.Element
-
-	GetHeader() grid.Element
-	GetFooter() grid.Element
-}
-
-type InfoPanel interface {
-	widgetapi.Widget
-	// FIXME
-}
-
-type Chart interface {
-	widgetapi.Widget
-	Series(label string, values []float64, opts ...linechart.SeriesOption) error
-}
-
-type FullscreenChart interface {
-	Series(label string, values []float64, opts ...linechart.SeriesOption) error
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
 }

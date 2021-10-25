@@ -3,13 +3,14 @@ package cui
 import (
 	"context"
 	"github.com/illatior/task-scheduler/core/metric"
+	"github.com/illatior/task-scheduler/cui/screen"
 	"github.com/mum4k/termdash"
 	"github.com/mum4k/termdash/container"
 	"github.com/mum4k/termdash/container/grid"
-	"github.com/mum4k/termdash/keyboard"
 	"github.com/mum4k/termdash/linestyle"
 	"github.com/mum4k/termdash/terminal/terminalapi"
 	"sync"
+	"time"
 )
 
 type cui struct {
@@ -18,12 +19,22 @@ type cui struct {
 	t terminalapi.Terminal
 	c *container.Container
 
-	mu            sync.RWMutex
+	screenMu      sync.RWMutex
 	currentScreen int
-	screens       []Screen
+	screens       []screen.Screen
+
+	updateInterval                 time.Duration
+	changeDisplayableIntervalDelta time.Duration
+
+	metricsMu sync.RWMutex
+	metrics   metric.Metrics
+
+	subs subsFunc
+
+	done chan bool
 }
 
-func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, error) {
+func NewCui(t terminalapi.Terminal, opts ...Option) (ConsoleUserInterface, error) {
 	c, err := container.New(
 		t,
 		container.ID(SCREEN_ID),
@@ -34,15 +45,36 @@ func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, er
 		return nil, err
 	}
 
+	mainScreen, err := screen.NewMainScreen()
+	if err != nil {
+		return nil, err
+	}
+
 	ui := &cui{
 		isFullscreen: false,
 		c:            c,
 		t:            t,
 
-		mu:            sync.RWMutex{},
+		screenMu:      sync.RWMutex{},
 		currentScreen: 0,
-		screens:       screens,
+		screens:       []screen.Screen{mainScreen},
+
+		updateInterval:                 100 * time.Millisecond,
+		changeDisplayableIntervalDelta: 5 * time.Second,
+
+		metrics: metric.NewMetrics(),
+
+		subs: defaultSubs(),
+		done: make(chan bool),
 	}
+
+	for _, opt := range opts {
+		err = opt.apply(ui)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	err = ui.changeMainScreen()
 	if err != nil {
 		return nil, err
@@ -51,31 +83,34 @@ func NewCui(t terminalapi.Terminal, screens ...Screen) (ConsoleUserInterface, er
 	return ui, nil
 }
 
-func (ui *cui) Run(ctx context.Context, done chan<- bool) error {
+func (ui *cui) Run(ctx context.Context, metrics <-chan *metric.Result, dispatchDone <-chan bool) error {
 	defer func() {
-		done <- true
+		ui.done <- true
 	}()
 
 	ctx, cancel := context.WithCancel(ctx)
-	subs := func (k *terminalapi.Keyboard) {
-		var err error
-		switch k.Key {
-		case 'Q', 'q', keyboard.KeyCtrlC:
-			cancel()
-		case 'A', 'a':
-			err = ui.PreviousScreen()
-		case 'D', 'd':
-			err = ui.NextScreen()
-		case 'F', 'f':
-			err = ui.ChangeFullscreenState()
-		default:
-			return
+	go ui.update(ctx)
+	go func() {
+		for _, s := range ui.screens {
+			go s.Run(ctx)
 		}
+	}()
 
-		if err != nil {
-			panic(err)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case m := <-metrics:
+				ui.metricsMu.Lock()
+				ui.metrics.ConsumeResult(m)
+				ui.metricsMu.Unlock()
+			}
 		}
-	}
+	}()
+
+	// TODO add ability to customize subs with option
+	subs := ui.subs(ctx, cancel, ui)
 
 	defer func() {
 		ui.t.Close()
@@ -83,8 +118,29 @@ func (ui *cui) Run(ctx context.Context, done chan<- bool) error {
 	return termdash.Run(ctx, ui.t, ui.c, termdash.KeyboardSubscriber(subs))
 }
 
-func (ui *cui) AcceptMetric(m *metric.Result) {
-	return
+func (ui *cui) GetDoneChan() <-chan bool {
+	return ui.done
+}
+
+func (ui *cui) update(ctx context.Context) {
+	t := time.NewTicker(ui.updateInterval)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			currentScreen := ui.screens[ui.currentScreen]
+
+			select {
+			case <-ctx.Done():
+				return
+			case currentScreen.GetMetricsChan() <- ui.metrics:
+				break
+			}
+		}
+	}
 }
 
 func (ui *cui) ChangeFullscreenState() error {
@@ -94,11 +150,11 @@ func (ui *cui) ChangeFullscreenState() error {
 }
 
 func (ui *cui) NextScreen() error {
-	ui.mu.Lock()
-	defer ui.mu.Unlock()
+	ui.screenMu.Lock()
+	defer ui.screenMu.Unlock()
 
 	ui.currentScreen++
-	if ui.currentScreen == len(ui.screens)-1 {
+	if ui.currentScreen == len(ui.screens) {
 		ui.currentScreen = 0
 	}
 
@@ -106,8 +162,8 @@ func (ui *cui) NextScreen() error {
 }
 
 func (ui *cui) PreviousScreen() error {
-	ui.mu.Lock()
-	defer ui.mu.Unlock()
+	ui.screenMu.Lock()
+	defer ui.screenMu.Unlock()
 
 	ui.currentScreen--
 	if ui.currentScreen < 0 {
@@ -117,19 +173,16 @@ func (ui *cui) PreviousScreen() error {
 	return ui.changeMainScreen()
 }
 
-func (ui *cui) changeMainScreen() error {
+func (ui *cui) changeMainScreen() error { // FIXME after exiting fullscreen mode main BorderTitle and BorderStyle continues to be as body's one
 	currentScreen := ui.screens[ui.currentScreen]
 
 	builder := grid.New()
-	body := currentScreen.GetBody()
 	if ui.isFullscreen {
-		builder.Add(body)
+		addElem(currentScreen.GetBody(), builder)
 	} else {
-		builder.Add(
-			currentScreen.GetHeader(),
-			currentScreen.GetBody(),
-			currentScreen.GetFooter(),
-		)
+		addElem(currentScreen.GetHeader(), builder)
+		addElem(currentScreen.GetBody(), builder)
+		addElem(currentScreen.GetFooter(), builder)
 	}
 
 	opts, err := builder.Build()
