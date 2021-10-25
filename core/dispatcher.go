@@ -2,8 +2,8 @@ package core
 
 import (
 	"context"
-	"github.com/illatior/task-scheduler/core/executor"
-	"github.com/illatior/task-scheduler/core/metric"
+	"github.com/illatior/nora/core/executor"
+	"github.com/illatior/nora/core/metric"
 	"runtime"
 	"sync"
 	"time"

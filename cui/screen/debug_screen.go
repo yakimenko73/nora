@@ -1,7 +1,7 @@
 package screen
 
 import (
-	"github.com/illatior/task-scheduler/core/metric"
+	"github.com/illatior/nora/core/metric"
 	"github.com/mum4k/termdash/container/grid"
 )
 

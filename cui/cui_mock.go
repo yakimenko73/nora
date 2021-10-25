@@ -2,7 +2,7 @@ package cui
 
 import (
 	"context"
-	"github.com/illatior/task-scheduler/core/metric"
+	"github.com/illatior/nora/core/metric"
 )
 
 type cuiMock struct {

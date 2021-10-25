@@ -3,7 +3,7 @@ package screen
 import (
 	"context"
 	"fmt"
-	"github.com/illatior/task-scheduler/core/metric"
+	"github.com/illatior/nora/core/metric"
 	"github.com/mum4k/termdash/container/grid"
 	"github.com/mum4k/termdash/widgets/barchart"
 	"github.com/mum4k/termdash/widgets/linechart"

@@ -1,4 +1,4 @@
-module github.com/illatior/task-scheduler
+module github.com/illatior/nora
 
 go 1.16
 

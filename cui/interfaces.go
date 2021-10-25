@@ -2,7 +2,7 @@ package cui
 
 import (
 	"context"
-	"github.com/illatior/task-scheduler/core/metric"
+	"github.com/illatior/nora/core/metric"
 	"github.com/mum4k/termdash/widgetapi"
 	"github.com/mum4k/termdash/widgets/linechart"
 )

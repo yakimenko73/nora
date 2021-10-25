@@ -2,8 +2,8 @@ package executor
 
 import (
 	"context"
-	"github.com/illatior/task-scheduler/core/metric"
-	"github.com/illatior/task-scheduler/core/task"
+	"github.com/illatior/nora/core/metric"
+	"github.com/illatior/nora/core/task"
 )
 
 type Executor interface {

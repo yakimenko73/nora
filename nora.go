@@ -1,25 +1,25 @@
-package task_scheduler
+package nora
 
 import (
 	"context"
-	"github.com/illatior/task-scheduler/core"
-	"github.com/illatior/task-scheduler/core/metric"
-	"github.com/illatior/task-scheduler/cui"
+	"github.com/illatior/nora/core"
+	"github.com/illatior/nora/core/metric"
+	"github.com/illatior/nora/cui"
 	"golang.org/x/sync/errgroup"
 )
 
-type taskScheduler struct {
+type nora struct {
 	c cui.ConsoleUserInterface
 	d *core.Dispatcher
 }
 
-func New(opts ...Option) (*taskScheduler, error) {
+func NewLoadService(opts ...Option) (*nora, error) {
 	d, err := core.NewDispatcher()
 	if err != nil {
 		return nil, err
 	}
 
-	ts := &taskScheduler{
+	ts := &nora{
 		c: cui.NewCuiMock(),
 		d: d,
 	}
@@ -34,7 +34,7 @@ func New(opts ...Option) (*taskScheduler, error) {
 	return ts, nil
 }
 
-func (ts *taskScheduler) Run(ctx context.Context) <-chan *metric.Result {
+func (ts *nora) Run(ctx context.Context) <-chan *metric.Result {
 	ctx, cancel := context.WithCancel(ctx)
 	eg, ctx := errgroup.WithContext(ctx)
 

@@ -1,8 +1,8 @@
-package task_scheduler
+package nora
 
 import (
-	"github.com/illatior/task-scheduler/core"
-	"github.com/illatior/task-scheduler/cui"
+	"github.com/illatior/nora/core"
+	"github.com/illatior/nora/cui"
 	"github.com/mum4k/termdash/terminal/tcell"
 	"github.com/mum4k/termdash/terminal/termbox"
 	"github.com/mum4k/termdash/terminal/terminalapi"
@@ -10,23 +10,23 @@ import (
 )
 
 type Option interface {
-	apply(ts *taskScheduler) error
+	apply(n *nora) error
 }
 
-type option func(ts *taskScheduler) error
+type option func(n *nora) error
 
-func (o option) apply(ts *taskScheduler) error {
-	return o(ts)
+func (o option) apply(n *nora) error {
+	return o(n)
 }
 
 func WithLoadOptions(opts ...core.Option) Option {
-	return option(func(ts *taskScheduler) error {
+	return option(func(n *nora) error {
 		d, err := core.NewDispatcher(opts...)
 		if err != nil {
 			return err
 		}
 
-		ts.d = d
+		n.d = d
 		return nil
 	})
 }
@@ -41,13 +41,13 @@ func createTerminal() (terminalapi.Terminal, error) {
 
 func WithConsoleUserInterface(opts ...cui.Option) Option {
 
-	return option(func(ts *taskScheduler) error {
+	return option(func(n *nora) error {
 		t, err := createTerminal()
 		if err != nil {
 			return err
 		}
 
-		ts.c, err = cui.NewCui(t, opts...)
+		n.c, err = cui.NewCui(t, opts...)
 		if err != nil {
 			return err
 		}

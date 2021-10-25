@@ -3,8 +3,8 @@ package core
 import (
 	"context"
 	"errors"
-	"github.com/illatior/task-scheduler/core/executor"
-	"github.com/illatior/task-scheduler/core/task"
+	"github.com/illatior/nora/core/executor"
+	"github.com/illatior/nora/core/task"
 	"time"
 )
 

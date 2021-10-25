@@ -2,8 +2,8 @@ package cui
 
 import (
 	"errors"
-	"github.com/illatior/task-scheduler/core/metric"
-	"github.com/illatior/task-scheduler/cui/screen"
+	"github.com/illatior/nora/core/metric"
+	"github.com/illatior/nora/cui/screen"
 	"github.com/mum4k/termdash/container"
 	"time"
 )

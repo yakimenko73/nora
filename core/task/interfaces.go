@@ -2,7 +2,7 @@ package task
 
 import (
 	"context"
-	"github.com/illatior/task-scheduler/core/metric"
+	"github.com/illatior/nora/core/metric"
 )
 
 type Task interface {
