@@ -1,9 +1,9 @@
-package cui
+package cli
 
 import (
 	"errors"
-	"github.com/illatior/nora/core/metric"
-	"github.com/illatior/nora/cui/screen"
+	"github.com/illatior/nora/lib/metric"
+	"github.com/illatior/nora/cli/screen"
 	"github.com/mum4k/termdash/container"
 	"time"
 )

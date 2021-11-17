@@ -1,8 +1,8 @@
 package nora
 
 import (
-	"github.com/illatior/nora/core"
-	"github.com/illatior/nora/cui"
+	"github.com/illatior/nora/cli"
+	"github.com/illatior/nora/lib"
 	"github.com/mum4k/termdash/terminal/tcell"
 	"github.com/mum4k/termdash/terminal/termbox"
 	"github.com/mum4k/termdash/terminal/terminalapi"
@@ -19,9 +19,9 @@ func (o option) apply(n *nora) error {
 	return o(n)
 }
 
-func WithLoadOptions(opts ...core.Option) Option {
+func WithLoadOptions(opts ...lib.Option) Option {
 	return option(func(n *nora) error {
-		d, err := core.NewDispatcher(opts...)
+		d, err := lib.NewDispatcher(opts...)
 		if err != nil {
 			return err
 		}
@@ -39,7 +39,7 @@ func createTerminal() (terminalapi.Terminal, error) {
 	return termbox.New(termbox.ColorMode(terminalapi.ColorMode216))
 }
 
-func WithConsoleUserInterface(opts ...cui.Option) Option {
+func WithConsoleUserInterface(opts ...cli.Option) Option {
 
 	return option(func(n *nora) error {
 		t, err := createTerminal()
@@ -47,7 +47,7 @@ func WithConsoleUserInterface(opts ...cui.Option) Option {
 			return err
 		}
 
-		n.c, err = cui.NewCui(t, opts...)
+		n.c, err = cli.NewCui(t, opts...)
 		if err != nil {
 			return err
 		}

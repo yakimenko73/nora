@@ -2,36 +2,36 @@ package nora
 
 import (
 	"context"
-	"github.com/illatior/nora/core"
-	"github.com/illatior/nora/core/metric"
-	"github.com/illatior/nora/cui"
+	"github.com/illatior/nora/cli"
+	"github.com/illatior/nora/lib"
+	"github.com/illatior/nora/lib/metric"
 	"golang.org/x/sync/errgroup"
 )
 
 type nora struct {
-	c cui.ConsoleUserInterface
-	d *core.Dispatcher
+	c cli.ConsoleUserInterface
+	d *lib.Dispatcher
 }
 
 func NewLoadService(opts ...Option) (*nora, error) {
-	d, err := core.NewDispatcher()
+	d, err := lib.NewDispatcher()
 	if err != nil {
 		return nil, err
 	}
 
-	ts := &nora{
-		c: cui.NewCuiMock(),
+	nr := &nora{
+		c: cli.NewCuiMock(),
 		d: d,
 	}
 
 	for _, opt := range opts {
-		err := opt.apply(ts)
+		err := opt.apply(nr)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return ts, nil
+	return nr, nil
 }
 
 func (ts *nora) Run(ctx context.Context) <-chan *metric.Result {

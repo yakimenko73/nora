@@ -3,9 +3,9 @@ package executor
 import (
 	"context"
 	"errors"
-	"github.com/illatior/nora/core/metric"
-	"github.com/illatior/nora/core/task"
-	"github.com/illatior/nora/core/util"
+	"github.com/illatior/nora/lib/metric"
+	"github.com/illatior/nora/lib/task"
+	"github.com/illatior/nora/lib/util"
 	"sync"
 )
 

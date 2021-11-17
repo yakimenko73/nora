@@ -2,7 +2,7 @@ package task
 
 import (
 	"context"
-	"github.com/illatior/nora/core/metric"
+	"github.com/illatior/nora/lib/metric"
 	"github.com/pkg/errors"
 	"time"
 )

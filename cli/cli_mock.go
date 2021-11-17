@@ -1,8 +1,8 @@
-package cui
+package cli
 
 import (
 	"context"
-	"github.com/illatior/nora/core/metric"
+	"github.com/illatior/nora/lib/metric"
 )
 
 type cuiMock struct {

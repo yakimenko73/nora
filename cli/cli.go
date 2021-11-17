@@ -1,9 +1,9 @@
-package cui
+package cli
 
 import (
 	"context"
-	"github.com/illatior/nora/core/metric"
-	"github.com/illatior/nora/cui/screen"
+	"github.com/illatior/nora/cli/screen"
+	"github.com/illatior/nora/lib/metric"
 	"github.com/mum4k/termdash"
 	"github.com/mum4k/termdash/container"
 	"github.com/mum4k/termdash/container/grid"
@@ -11,6 +11,10 @@ import (
 	"github.com/mum4k/termdash/terminal/terminalapi"
 	"sync"
 	"time"
+)
+
+const (
+	SCREEN_ID = "scr"
 )
 
 type cui struct {

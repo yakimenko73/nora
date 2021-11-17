@@ -1,4 +1,4 @@
-package cui
+package cli
 
 import "github.com/mum4k/termdash/container/grid"
 

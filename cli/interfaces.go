@@ -1,14 +1,10 @@
-package cui
+package cli
 
 import (
 	"context"
-	"github.com/illatior/nora/core/metric"
+	"github.com/illatior/nora/lib/metric"
 	"github.com/mum4k/termdash/widgetapi"
 	"github.com/mum4k/termdash/widgets/linechart"
-)
-
-const (
-	SCREEN_ID = "scr"
 )
 
 type ConsoleUserInterface interface {

@@ -1,10 +1,10 @@
-package core
+package lib
 
 import (
 	"context"
 	"errors"
-	"github.com/illatior/nora/core/executor"
-	"github.com/illatior/nora/core/task"
+	"github.com/illatior/nora/lib/executor"
+	"github.com/illatior/nora/lib/task"
 	"time"
 )
 

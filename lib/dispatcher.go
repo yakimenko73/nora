@@ -1,9 +1,9 @@
-package core
+package lib
 
 import (
 	"context"
-	"github.com/illatior/nora/core/executor"
-	"github.com/illatior/nora/core/metric"
+	"github.com/illatior/nora/lib/executor"
+	"github.com/illatior/nora/lib/metric"
 	"runtime"
 	"sync"
 	"time"
@@ -34,7 +34,7 @@ func NewDispatcher(opts ...Option) (*Dispatcher, error) {
 		}
 	}
 
-	return d, err
+	return d, nil
 }
 
 func (d *Dispatcher) Dispatch(ctx context.Context) <-chan *metric.Result {
