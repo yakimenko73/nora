@@ -3,7 +3,6 @@ package task
 import (
 	"context"
 	"github.com/illatior/nora/lib/metric"
-	"github.com/pkg/errors"
 	"time"
 )
 
@@ -23,26 +22,10 @@ func NewTimeLimitedTask(taskFunc func(ctx context.Context) error, name string, t
 }
 
 func (t *timeLimitedTask) Run(ctx context.Context) (res *metric.Result) {
-	childCtx, cancel := context.WithTimeout(ctx, t.timeout)
-
-	done := make(chan bool, 1)
+	ctx, cancel := context.WithTimeout(ctx, t.timeout)
+	defer cancel()
 
 	var err error
-	go func() {
-		defer cancel()
-
-		select {
-		case <-done:
-			return
-		case <-ctx.Done():
-			err = errContextCancelled
-			return
-		case <-time.After(t.timeout):
-			err = errTaskTimedOut
-			return
-		}
-	}()
-
 	res = &metric.Result{
 		Name:  t.name,
 		Start: time.Now(),
@@ -54,13 +37,19 @@ func (t *timeLimitedTask) Run(ctx context.Context) (res *metric.Result) {
 		res.Duration = time.Since(res.Start)
 	}()
 
-	if tmp := t.task(childCtx); tmp != nil {
-		if err != nil {
-			err = errors.Wrap(err, tmp.Error())
-		} else {
-			err = tmp
-		}
+	resCh := make(chan error, 1)
+	go func() {
+		resCh <- t.task(ctx)
+	}()
+
+	select {
+	case <-ctx.Done():
+		err = errContextCancelled
+	case <-time.After(t.timeout):
+		err = errTaskTimedOut
+	case res := <-resCh:
+		err = res
 	}
-	done <- true
+
 	return
 }

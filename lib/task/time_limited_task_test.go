@@ -82,7 +82,7 @@ func TestTimeLimitedTask_TimeOut(t *testing.T) {
 
 func TestTimeLimitedTask_ContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	defer cancel()
 
 	taskFunction := func(ctx context.Context) error {
 		cancel()
