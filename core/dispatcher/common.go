@@ -2,8 +2,8 @@ package dispatcher
 
 import (
 	"context"
-	"github.com/illatior/task-scheduler/core/executor"
-	"github.com/illatior/task-scheduler/core/metric"
+	"github.com/yakimenko73/nora/core/executor"
+	"github.com/yakimenko73/nora/core/metric"
 	"sync"
 	"time"
 )

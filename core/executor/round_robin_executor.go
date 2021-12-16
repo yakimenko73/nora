@@ -2,8 +2,8 @@ package executor
 
 import (
 	"errors"
-	"github.com/illatior/task-scheduler/core/metric"
-	"github.com/illatior/task-scheduler/core/task"
+	"github.com/yakimenko73/nora/core/metric"
+	"github.com/yakimenko73/nora/core/task"
 	"sync"
 	"sync/atomic"
 )
